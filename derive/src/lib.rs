@@ -39,8 +39,11 @@ use crate::traits::{
 /// ```
 #[proc_macro_derive(Pod)]
 pub fn derive_pod(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  let expanded =
-    derive_marker_trait::<Pod>(parse_macro_input!(input as DeriveInput));
+  let input = parse_macro_input!(input as DeriveInput);
+  let mut expanded =
+    derive_marker_trait::<AnyBitPattern>(input.clone());
+  expanded.extend([derive_marker_trait::<Zeroable>(input.clone())]);
+  expanded.extend([derive_marker_trait::<NoUninit>(input.clone())]);
 
   proc_macro::TokenStream::from(expanded)
 }

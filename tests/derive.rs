@@ -41,7 +41,7 @@ fn test_generic<T>(x: T) -> TransparentWithGeneric<T> {
 #[transparent(T)]
 struct TransparentWithGenericAndZeroSized<T> {
   a: T,
-  b: ()
+  b: (),
 }
 
 /// Ensuring that no additional bounds are emitted.

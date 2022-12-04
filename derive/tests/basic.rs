@@ -225,6 +225,6 @@ fn checkedbitpattern_try_pod_read_unaligned() {
   assert!(res.is_err());
 }
 
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, bytemuck::Pod)]
 #[repr(C, align(16))]
 struct Issue127 {}

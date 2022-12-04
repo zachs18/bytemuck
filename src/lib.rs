@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(freeze_trait)]
 #![warn(missing_docs)]
 #![allow(clippy::match_like_matches_macro)]
 #![cfg_attr(feature = "nightly_portable_simd", feature(portable_simd))]
@@ -39,9 +40,9 @@
 //!   methods related to `Box` and `Vec`. Note that the `docs.rs` documentation
 //!   is always built with `extern_crate_alloc` cargo feature enabled.
 
-#[cfg(all(target_arch = "aarch64", feature = "aarch64_simd"))]
+#[cfg(target_arch = "aarch64")]
 use core::arch::aarch64;
-#[cfg(all(target_arch = "wasm32", feature = "wasm_simd"))]
+#[cfg(target_arch = "wasm32")]
 use core::arch::wasm32;
 #[cfg(target_arch = "x86")]
 use core::arch::x86;
@@ -56,13 +57,6 @@ use core::{marker::*, mem::*, num::*, ptr::*};
 #[doc(hidden)]
 pub use ::core as __core;
 
-#[cfg(not(feature = "min_const_generics"))]
-macro_rules! impl_unsafe_marker_for_array {
-  ( $marker:ident , $( $n:expr ),* ) => {
-    $(unsafe impl<T> $marker for [T; $n] where T: $marker {})*
-  }
-}
-
 /// A macro to transmute between two types without requiring knowing size
 /// statically.
 macro_rules! transmute {
@@ -71,18 +65,29 @@ macro_rules! transmute {
   };
 }
 
-#[cfg(feature = "extern_crate_std")]
+macro_rules! simd_impls {
+    (unsafe impl $trait:ident for $platform:ident :: {}) => {
+    };
+    (unsafe impl $trait:ident for $platform:ident :: { $first_type:ident $(, $($types:ident),* $(,)? )? }) => {
+        unsafe impl $trait for $platform::$first_type {}
+        simd_impls!(unsafe impl $trait for $platform::{ $( $( $types ),* )? });
+    };
+}
+
+#[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 pub mod allocation;
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 pub use allocation::*;
 
 mod anybitpattern;
 pub use anybitpattern::*;
+mod anybitpattern_in_option;
+pub use anybitpattern_in_option::*;
 
 pub mod checked;
 pub use checked::CheckedBitPattern;
@@ -101,6 +106,8 @@ pub use pod_in_option::*;
 
 mod no_uninit;
 pub use no_uninit::*;
+mod no_uninit_in_option;
+pub use no_uninit_in_option::*;
 
 mod contiguous;
 pub use contiguous::*;
@@ -258,7 +265,7 @@ pub fn cast_mut<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
 ///
 /// This is [`try_cast_ref`] but will panic on error.
 #[inline]
-pub fn cast_ref<A: NoUninit, B: AnyBitPattern>(a: &A) -> &B {
+pub fn cast_ref<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(a: &A) -> &B {
   unsafe { internal::cast_ref(a) }
 }
 
@@ -268,7 +275,7 @@ pub fn cast_ref<A: NoUninit, B: AnyBitPattern>(a: &A) -> &B {
 ///
 /// This is [`try_cast_slice`] but will panic on error.
 #[inline]
-pub fn cast_slice<A: NoUninit, B: AnyBitPattern>(a: &[A]) -> &[B] {
+pub fn cast_slice<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(a: &[A]) -> &[B] {
   unsafe { internal::cast_slice(a) }
 }
 
@@ -289,7 +296,7 @@ pub fn cast_slice_mut<
 
 /// As `align_to`, but safe because of the [`Pod`] bound.
 #[inline]
-pub fn pod_align_to<T: NoUninit, U: AnyBitPattern>(
+pub fn pod_align_to<T: NoUninit + Freeze, U: AnyBitPattern + Freeze>(
   vals: &[T],
 ) -> (&[T], &[U], &[T]) {
   unsafe { vals.align_to::<U>() }
@@ -330,7 +337,7 @@ pub fn try_cast<A: NoUninit, B: AnyBitPattern>(
 /// * If the reference isn't aligned in the new type
 /// * If the source type and target type aren't the same size.
 #[inline]
-pub fn try_cast_ref<A: NoUninit, B: AnyBitPattern>(
+pub fn try_cast_ref<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   a: &A,
 ) -> Result<&B, PodCastError> {
   unsafe { internal::try_cast_ref(a) }
@@ -365,7 +372,7 @@ pub fn try_cast_mut<
 /// * Similarly, you can't convert between a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts)
 ///   and a non-ZST.
 #[inline]
-pub fn try_cast_slice<A: NoUninit, B: AnyBitPattern>(
+pub fn try_cast_slice<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   a: &[A],
 ) -> Result<&[B], PodCastError> {
   unsafe { internal::try_cast_slice(a) }

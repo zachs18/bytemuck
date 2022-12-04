@@ -1,4 +1,4 @@
-use crate::Pod;
+use crate::*;
 use core::num::{
   NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize,
   NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
@@ -60,11 +60,34 @@ use core::num::{
 /// * There's probably more, don't mess it up (I mean it).
 pub unsafe trait NoUninit: Sized + Copy + 'static {}
 
-unsafe impl<T: Pod> NoUninit for T {}
-
-unsafe impl NoUninit for char {}
-
+unsafe impl NoUninit for () {}
 unsafe impl NoUninit for bool {}
+unsafe impl NoUninit for char {}
+unsafe impl NoUninit for u8 {}
+unsafe impl NoUninit for i8 {}
+unsafe impl NoUninit for u16 {}
+unsafe impl NoUninit for i16 {}
+unsafe impl NoUninit for u32 {}
+unsafe impl NoUninit for i32 {}
+unsafe impl NoUninit for u64 {}
+unsafe impl NoUninit for i64 {}
+unsafe impl NoUninit for usize {}
+unsafe impl NoUninit for isize {}
+unsafe impl NoUninit for u128 {}
+unsafe impl NoUninit for i128 {}
+unsafe impl NoUninit for f32 {}
+unsafe impl NoUninit for f64 {}
+
+unsafe impl<T: NoUninit> NoUninit for core::cell::UnsafeCell<T> {}
+unsafe impl<T: NoUninit> NoUninit for core::cell::Cell<T> {}
+unsafe impl<T: NoUninit> NoUninit for Wrapping<T> {}
+unsafe impl<T: NoUninit> NoUninit for core::cmp::Reverse<T> {}
+
+unsafe impl<T: NoUninit> NoUninit for PhantomData<T> {}
+unsafe impl NoUninit for PhantomPinned {}
+unsafe impl<T: NoUninit> NoUninit for ManuallyDrop<T> {}
+
+unsafe impl<T, const N: usize> NoUninit for [T; N] where T: NoUninit {}
 
 unsafe impl NoUninit for NonZeroU8 {}
 unsafe impl NoUninit for NonZeroI8 {}
@@ -78,3 +101,58 @@ unsafe impl NoUninit for NonZeroU128 {}
 unsafe impl NoUninit for NonZeroI128 {}
 unsafe impl NoUninit for NonZeroUsize {}
 unsafe impl NoUninit for NonZeroIsize {}
+
+#[cfg(target_arch = "wasm32")]
+simd_impls!(
+    unsafe impl NoUninit for wasm32::{v128}
+);
+
+#[cfg(target_arch = "aarch64")]
+simd_impls!(
+    unsafe impl NoUninit for aarch64::{
+        float32x2_t, float32x2x2_t, float32x2x3_t, float32x2x4_t, float32x4_t,
+        float32x4x2_t, float32x4x3_t, float32x4x4_t, float64x1_t, float64x1x2_t,
+        float64x1x3_t, float64x1x4_t, float64x2_t, float64x2x2_t, float64x2x3_t,
+        float64x2x4_t, int16x4_t, int16x4x2_t, int16x4x3_t, int16x4x4_t, int16x8_t,
+        int16x8x2_t, int16x8x3_t, int16x8x4_t, int32x2_t, int32x2x2_t, int32x2x3_t,
+        int32x2x4_t, int32x4_t, int32x4x2_t, int32x4x3_t, int32x4x4_t, int64x1_t,
+        int64x1x2_t, int64x1x3_t, int64x1x4_t, int64x2_t, int64x2x2_t, int64x2x3_t,
+        int64x2x4_t, int8x16_t, int8x16x2_t, int8x16x3_t, int8x16x4_t, int8x8_t,
+        int8x8x2_t, int8x8x3_t, int8x8x4_t, poly16x4_t, poly16x4x2_t, poly16x4x3_t,
+        poly16x4x4_t, poly16x8_t, poly16x8x2_t, poly16x8x3_t, poly16x8x4_t,
+        poly64x1_t, poly64x1x2_t, poly64x1x3_t, poly64x1x4_t, poly64x2_t,
+        poly64x2x2_t, poly64x2x3_t, poly64x2x4_t, poly8x16_t, poly8x16x2_t,
+        poly8x16x3_t, poly8x16x4_t, poly8x8_t, poly8x8x2_t, poly8x8x3_t, poly8x8x4_t,
+        uint16x4_t, uint16x4x2_t, uint16x4x3_t, uint16x4x4_t, uint16x8_t,
+        uint16x8x2_t, uint16x8x3_t, uint16x8x4_t, uint32x2_t, uint32x2x2_t,
+        uint32x2x3_t, uint32x2x4_t, uint32x4_t, uint32x4x2_t, uint32x4x3_t,
+        uint32x4x4_t, uint64x1_t, uint64x1x2_t, uint64x1x3_t, uint64x1x4_t,
+        uint64x2_t, uint64x2x2_t, uint64x2x3_t, uint64x2x4_t, uint8x16_t,
+        uint8x16x2_t, uint8x16x3_t, uint8x16x4_t, uint8x8_t, uint8x8x2_t,
+        uint8x8x3_t, uint8x8x4_t,
+      }
+);
+
+#[cfg(target_arch = "x86")]
+simd_impls!(
+    unsafe impl NoUninit for x86::{
+        __m128i, __m128, __m128d,
+        __m256i, __m256, __m256d,
+    }
+);
+
+#[cfg(target_arch = "x86_64")]
+simd_impls!(
+    unsafe impl NoUninit for x86_64::{
+        __m128i, __m128, __m128d,
+        __m256i, __m256, __m256d,
+    }
+);
+
+#[cfg(feature = "nightly_portable_simd")]
+unsafe impl<T, const N: usize> NoUninit for core::simd::Simd<T, N>
+where
+  T: core::simd::SimdElement + NoUninit,
+  core::simd::LaneCount<N>: core::simd::SupportedLaneCount,
+{
+}
