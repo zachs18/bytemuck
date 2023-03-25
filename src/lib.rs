@@ -88,6 +88,10 @@ macro_rules! impl_unsafe_marker_for_simd {
 #[cfg(feature = "extern_crate_std")]
 extern crate std;
 
+#[cfg(feature = "unified_cast")]
+#[macro_use]
+mod static_assert;
+
 #[cfg(feature = "extern_crate_alloc")]
 extern crate alloc;
 #[cfg(feature = "extern_crate_alloc")]
@@ -124,6 +128,13 @@ pub use offset_of::*;
 
 mod transparent;
 pub use transparent::*;
+
+#[cfg(feature = "unified_cast")]
+mod cast;
+#[cfg(feature = "unified_cast")]
+pub use cast::{
+  Reinterpret, ReinterpretInner, TryReinterpret, TryReinterpretInner,
+};
 
 #[cfg(feature = "derive")]
 pub use bytemuck_derive::{
