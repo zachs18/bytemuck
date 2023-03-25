@@ -125,6 +125,9 @@ pub use offset_of::*;
 mod transparent;
 pub use transparent::*;
 
+mod cast;
+pub use cast::CastInPlace;
+
 #[cfg(feature = "derive")]
 pub use bytemuck_derive::{
   AnyBitPattern, ByteEq, ByteHash, CheckedBitPattern, Contiguous, NoUninit,
