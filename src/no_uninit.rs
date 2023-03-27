@@ -78,3 +78,6 @@ unsafe impl NoUninit for NonZeroU128 {}
 unsafe impl NoUninit for NonZeroI128 {}
 unsafe impl NoUninit for NonZeroUsize {}
 unsafe impl NoUninit for NonZeroIsize {}
+
+#[cfg(feature = "never_type")]
+unsafe impl NoUninit for ! {}

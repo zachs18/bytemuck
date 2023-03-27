@@ -4,6 +4,7 @@
 #![allow(clippy::uninlined_format_args)]
 #![cfg_attr(feature = "nightly_portable_simd", feature(portable_simd))]
 #![cfg_attr(feature = "nightly_stdsimd", feature(stdsimd))]
+#![cfg_attr(feature = "nightly_never_type", feature(never_type))]
 
 //! This crate gives small utilities for casting between plain data types.
 //!

@@ -206,6 +206,16 @@ impl_checked_for_nonzero! {
   core::num::NonZeroIsize: isize,
 }
 
+#[cfg(feature = "nightly_never_type")]
+unsafe impl CheckedBitPattern for ! {
+  type Bits = ();
+
+  #[inline(always)]
+  fn is_valid_bit_pattern(_bits: &Self::Bits) -> bool {
+    false
+  }
+}
+
 /// The things that can go wrong when casting between [`CheckedBitPattern`] data
 /// forms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
