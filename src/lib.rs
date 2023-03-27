@@ -125,7 +125,9 @@ pub use offset_of::*;
 mod transparent;
 pub use transparent::*;
 
+#[cfg(feature = "unified_cast")]
 mod cast;
+#[cfg(feature = "unified_cast")]
 pub use cast::CastInPlace;
 
 #[cfg(feature = "derive")]
