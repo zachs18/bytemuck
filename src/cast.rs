@@ -1,3 +1,32 @@
+//! Safe conversion of a container's item type.
+//!
+//! The implementation uses several traits to deconstruct, cast, and reconstruct
+//! the container.
+//! * `Ctor` is the type constructor for a container. This handles changing the
+//!   item type, and defining the data pointer and metadata types.
+//!   Examples include: `&'a _`, `&'a [_]`, `Box<_>` and `Vec<_>`
+//! * `Container` is the concrete type created by giving an item type to `Ctor`.
+//!   This handles splitting the data pointer and metadata, and combining the
+//!   two back together.
+//!   Examples include: `&'a u8`, `&'a [i32]`, `Box<String>` and `Vec<f32>`
+//! * `CastPtr` implements casting the data pointer from one type to another.
+//!   Currently there are two implementations:
+//!   * `*const _` indicates that either the source value will not be read after
+//!     the conversion, or the target type cannot be written two.
+//!   * `*mut _` indicates that the source value may be read after the
+//!     conversion, and the target type can be written to.
+//! * `CastMetadata` implements casting anything other than the data pointer.
+//!   e.g. the length conversion of a slice.
+//! * `CastContainer` implements any additional constraints applied by a
+//!   container class.
+//!   e.g. `Box<_>` requires both the size and alignment of the allocation to
+//!   match.
+//! * `CastInPlace` is the exported trait providing the safe cast function.
+//!
+//! This uses post-monomorphization errors to check for various size and
+//! alignment constraints. This is done by panicking during the evaluation of
+//! associated constants.
+
 use core::{
   marker::{PhantomData, Unpin},
   mem::{align_of, size_of},
@@ -10,11 +39,11 @@ use core::{
 
 use crate::{AnyBitPattern, NoUninit, PodCastError};
 
-/// A type constructor for a container type. e.g. `&'a _`, `Box<[_]>`, `Vec<_>`
+/// A type constructor for a container type.
 ///
 /// # Safety
-/// `Self::Pointer<T>` must be `*mut T` if writing to the new type is both possible
-/// and that value can be read as the old type.
+/// `Self::Pointer<T>` must be `*mut T` if the original value can be read
+/// afterwards and writing to the target type is possible.
 pub unsafe trait Ctor<'a> {
   /// Creates the container type for the given item type.
   type Create<T: 'a>;
@@ -113,7 +142,7 @@ unsafe impl<'a> Ctor<'a> for AtomicPtrT {
 }
 
 pub struct PinT<'a, C: Ctor<'a>>(PhantomData<(C, &'a ())>);
-// SAFETY: `Pin` is a thin wrapper
+// SAFETY: `Pin` only allows whatever access the wrapped pointer has.
 unsafe impl<'a, C: Ctor<'a>> Ctor<'a> for PinT<'a, C> {
   type Create<T: 'a> = Pin<<C as Ctor<'a>>::Create<T>>;
   type Pointer<T: 'a> = <C as Ctor<'a>>::Pointer<T>;
@@ -124,7 +153,7 @@ unsafe impl<'a, C: Ctor<'a>> Ctor<'a> for PinT<'a, C> {
 ///
 /// # Safety
 /// `Self::Item` must match the contained item type.
-/// `into_parts` and `from_parts` must be a matching pair.
+/// `into_parts` must be the inverse of `from_parts`, even if the item type changes.
 pub unsafe trait Container<'a> {
   /// The type constructor for this container.
   type Ctor: Ctor<'a, Create<Self::Item> = Self>;
@@ -142,10 +171,12 @@ pub unsafe trait Container<'a> {
   /// Assembles the container from it's data pointer and associated metadata.
   ///
   /// # Safety
-  /// The values must have come from `into_parts` of the same container class.
-  /// Casting to a different item type must meet the following constraints:
+  /// The values must have to come from `into_parts` of the same container
+  /// class. Casting to a different item type must meet the following
+  /// constraints:
   /// * Casting between zero-sized types and non-zero-sized types is forbidden.
-  /// * The data pointers alignment must meet the alignment constraints of it's item type.
+  /// * The data pointer's alignment must meet the alignment constraints of it's
+  ///   item type.
   /// * Size and alignment requirements of the container class must be met.
   /// * The metadata must be adjusted for the new type.
   unsafe fn from_parts(
@@ -303,6 +334,7 @@ unsafe impl<'a, T: 'a> Container<'a> for AtomicPtr<T> {
   }
 }
 
+// SAFETY: `Pin` has no safety requirements for types which deref to an `Unpin` type.
 unsafe impl<'a, C> Container<'a> for Pin<C>
 where
   C: Container<'a> + Deref<Target = C::Item>,
@@ -332,13 +364,21 @@ where
 }
 
 /// Casts the data pointer portion of a container.
-trait CastPtr<T> {
-  /// Perform the cast. Will return `None` if the input is not suitably aligne
+///
+/// SAFETY:
+/// * The returned pointer must have the same address.
+/// * The returned pointer must be suitably aligned.
+/// * For mutable pointers, it must be safe to read from the original pointer
+///   once the new pointer has been written through.
+unsafe trait CastPtr<T> {
+  /// Perform the cast. Will return `None` if the input is not suitably aligned
   /// for the target type.
   fn cast_ptr(self) -> Option<T>;
 }
 
-impl<T, U> CastPtr<*const U> for *const T
+// SAFETY: `*const _` indicates that the original value cannot be used to read
+// anything written through the target type.
+unsafe impl<T, U> CastPtr<*const U> for *const T
 where
   T: NoUninit,
   U: AnyBitPattern,
@@ -354,6 +394,8 @@ where
   }
 }
 
+// SAFETY: `*mut _` indicates that the original value can be used read something
+// written through the target type.
 impl<T, U> CastPtr<*mut U> for *mut T
 where
   T: NoUninit + AnyBitPattern,
@@ -432,8 +474,19 @@ impl<T, U> CastMetadata<T, U> for usize {
   }
 }
 
+/// Safely reinterprets a value or group af values in place.
+///
+/// This currently supports the following pointer/reference/container types:
+/// * `&'a T`
+/// * `*const T`
+/// * `NonNull<T>`
+/// * `AtomicPtr<T>`
+/// * `Pin<T>` for any supported pointer type.
+///
+/// All applicable mutable and slice variants are also supported.
 pub trait CastInPlace<'a, T>: Sized + Container<'a> {
   const _COND: ();
+  /// Perform the cast.
   fn cast_in_place(self) -> Result<T, Self::Err>;
 }
 
