@@ -96,7 +96,7 @@ fn test_arc() {
 }
 
 #[test]
-#[cfg(target_has_atomic = "ptr")]
+#[cfg(feature = "extern_crate_alloc")]
 fn test_cow() {
   extern crate alloc;
   use alloc::{borrow::Cow, vec};
