@@ -94,3 +94,22 @@ fn test_arc() {
   let y: Arc<u8> = x.cast_in_place().unwrap();
   assert_eq!(*y, 1);
 }
+
+#[test]
+#[cfg(target_has_atomic = "ptr")]
+fn test_cow() {
+  extern crate alloc;
+  use alloc::{borrow::Cow, vec};
+  let x: Cow<[u32]> = vec![42].into();
+  let y: Result<Cow<[u8]>, _> = x.cast_in_place();
+  y.unwrap_err();
+
+  let x: Cow<[u32]> = Cow::Borrowed(&[42]);
+  let y: Cow<[u8]> = x.cast_in_place().unwrap();
+  let z: &[u8] = bytemuck::cast_slice(&[42u32]);
+  assert_eq!(y, z);
+  #[cfg(target_endian = "little")]
+  assert_eq!(*y, [42, 0, 0, 0]);
+  #[cfg(target_endian = "big")]
+  assert_eq!(*y, [0, 0, 0, 42]);
+}

@@ -42,12 +42,7 @@ use core::{
 
 use alloc::sync::Arc;
 #[cfg(feature = "extern_crate_alloc")]
-use alloc::{
-  boxed::Box,
-  rc::Rc,
-  //  borrow::{Cow, ToOwned},
-  vec::Vec,
-};
+use alloc::{borrow::Cow, boxed::Box, rc::Rc, vec::Vec};
 #[cfg(feature = "extern_crate_alloc")]
 use core::mem::ManuallyDrop;
 
@@ -60,9 +55,9 @@ use crate::{AnyBitPattern, NoUninit, PodCastError};
 /// afterwards and writing to the target type is possible.
 pub unsafe trait Ctor<'a> {
   /// Creates the container type for the given item type.
-  type Create<T: 'a>;
+  type Create<T: Copy + 'a>;
   /// The pointer to the item(s) contained within the container.
-  type Pointer<T: 'a>: Copy;
+  type Pointer<T: Copy + 'a>: Copy;
   /// The metadata required to recreate the contained with the data pointer.
   type Metadata: Copy;
 }
@@ -71,16 +66,16 @@ pub struct RefT<'a>(PhantomData<&'a ()>);
 // SAFETY: Writing through an immutable reference is not safe, so
 // `SharedBorrowingPtr<T>` is ok.
 unsafe impl<'a> Ctor<'a> for RefT<'a> {
-  type Create<T: 'a> = &'a T;
-  type Pointer<T: 'a> = SharedBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = &'a T;
+  type Pointer<T: Copy + 'a> = SharedBorrowingPtr<T>;
   type Metadata = ();
 }
 
 pub struct MutT<'a>(PhantomData<&'a mut ()>);
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for MutT<'a> {
-  type Create<T: 'a> = &'a mut T;
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = &'a mut T;
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = ();
 }
 
@@ -88,16 +83,16 @@ pub struct RefSliceT<'a>(PhantomData<&'a ()>);
 // SAFETY: Writing through an immutable reference is not safe, so
 // `SharedBorrowingPtr<T>` is ok.
 unsafe impl<'a> Ctor<'a> for RefSliceT<'a> {
-  type Create<T: 'a> = &'a [T];
-  type Pointer<T: 'a> = SharedBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = &'a [T];
+  type Pointer<T: Copy + 'a> = SharedBorrowingPtr<T>;
   type Metadata = usize;
 }
 
 pub struct MutSliceT<'a>(PhantomData<&'a mut ()>);
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for MutSliceT<'a> {
-  type Create<T: 'a> = &'a mut [T];
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = &'a mut [T];
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = usize;
 }
 
@@ -105,16 +100,16 @@ pub struct ConstPtrT;
 // SAFETY: Writing through a const pointer is not safe, so
 // `SharedBorrowingPtr<T>` is ok.
 unsafe impl<'a> Ctor<'a> for ConstPtrT {
-  type Create<T: 'a> = *const T;
-  type Pointer<T: 'a> = SharedBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = *const T;
+  type Pointer<T: Copy + 'a> = SharedBorrowingPtr<T>;
   type Metadata = ();
 }
 
 pub struct MutPtrT;
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for MutPtrT {
-  type Create<T: 'a> = *mut T;
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = *mut T;
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = ();
 }
 
@@ -122,55 +117,55 @@ pub struct ConstSlicePtrT;
 // SAFETY: Writing through a const pointer is not safe, so
 // `SharedBorrowingPtr<T>` is ok.
 unsafe impl<'a> Ctor<'a> for ConstSlicePtrT {
-  type Create<T: 'a> = *const [T];
-  type Pointer<T: 'a> = SharedBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = *const [T];
+  type Pointer<T: Copy + 'a> = SharedBorrowingPtr<T>;
   type Metadata = usize;
 }
 
 pub struct MutSlicePtrT;
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for MutSlicePtrT {
-  type Create<T: 'a> = *mut [T];
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = *mut [T];
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = usize;
 }
 
 pub struct NonNullT;
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for NonNullT {
-  type Create<T: 'a> = NonNull<T>;
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = NonNull<T>;
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = ();
 }
 
 pub struct NonNullSliceT;
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for NonNullSliceT {
-  type Create<T: 'a> = NonNull<[T]>;
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = NonNull<[T]>;
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = usize;
 }
 
 pub struct AtomicPtrT;
 // SAFETY: Using `*mut T` is always safe.
 unsafe impl<'a> Ctor<'a> for AtomicPtrT {
-  type Create<T: 'a> = AtomicPtr<T>;
-  type Pointer<T: 'a> = UniqueBorrowingPtr<T>;
+  type Create<T: Copy + 'a> = AtomicPtr<T>;
+  type Pointer<T: Copy + 'a> = UniqueBorrowingPtr<T>;
   type Metadata = ();
 }
 
 pub struct PinT<'a, C: Ctor<'a>>(PhantomData<(C, &'a ())>);
 // SAFETY: `Pin` only allows whatever access the wrapped pointer has.
 unsafe impl<'a, C: Ctor<'a>> Ctor<'a> for PinT<'a, C> {
-  type Create<T: 'a> = Pin<<C as Ctor<'a>>::Create<T>>;
-  type Pointer<T: 'a> = <C as Ctor<'a>>::Pointer<T>;
+  type Create<T: Copy + 'a> = Pin<<C as Ctor<'a>>::Create<T>>;
+  type Pointer<T: Copy + 'a> = <C as Ctor<'a>>::Pointer<T>;
   type Metadata = <C as Ctor<'a>>::Metadata;
 }
 
 pub struct OptionT<'a, C: Ctor<'a>>(PhantomData<(C, &'a ())>);
 unsafe impl<'a, C: Ctor<'a>> Ctor<'a> for OptionT<'a, C> {
-  type Create<T: 'a> = Option<<C as Ctor<'a>>::Create<T>>;
-  type Pointer<T: 'a> = Option<<C as Ctor<'a>>::Pointer<T>>;
+  type Create<T: Copy + 'a> = Option<<C as Ctor<'a>>::Create<T>>;
+  type Pointer<T: Copy + 'a> = Option<<C as Ctor<'a>>::Pointer<T>>;
   type Metadata = Option<<C as Ctor<'a>>::Metadata>;
 }
 
@@ -178,9 +173,9 @@ unsafe impl<'a, C: Ctor<'a>> Ctor<'a> for OptionT<'a, C> {
 pub struct VecT(PhantomData<Vec<()>>);
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for VecT {
-  type Create<T: 'a> = Vec<T>;
+  type Create<T: Copy + 'a> = Vec<T>;
   // We do not need to be able to read as the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = VecMetadata;
 }
 
@@ -195,9 +190,9 @@ pub struct VecMetadata {
 pub struct BoxT(PhantomData<Box<()>>);
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for BoxT {
-  type Create<T: 'a> = Box<T>;
+  type Create<T: Copy + 'a> = Box<T>;
   // We do not need to be able to read as the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = ();
 }
 
@@ -205,9 +200,9 @@ unsafe impl<'a> Ctor<'a> for BoxT {
 pub struct BoxSliceT(PhantomData<Box<[()]>>);
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for BoxSliceT {
-  type Create<T: 'a> = Box<[T]>;
+  type Create<T: Copy + 'a> = Box<[T]>;
   // We do not need to be able to read as the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = usize;
 }
 
@@ -215,11 +210,11 @@ unsafe impl<'a> Ctor<'a> for BoxSliceT {
 pub struct RcT(PhantomData<Rc<()>>);
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for RcT {
-  type Create<T: 'a> = Rc<T>;
+  type Create<T: Copy + 'a> = Rc<T>;
   // Either we do need to be able to read as the original type but no writes are
   // possible, or writes are possible but we don't need to be able to read as
   // the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = ();
 }
 
@@ -227,11 +222,11 @@ unsafe impl<'a> Ctor<'a> for RcT {
 pub struct RcSliceT(PhantomData<Rc<[()]>>);
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for RcSliceT {
-  type Create<T: 'a> = Rc<[T]>;
+  type Create<T: Copy + 'a> = Rc<[T]>;
   // Either we do need to be able to read as the original type but no writes are
   // possible, or writes are possible but we don't need to be able to read as
   // the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = usize;
 }
 
@@ -241,11 +236,11 @@ pub struct ArcT(PhantomData<Arc<()>>);
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for ArcT {
-  type Create<T: 'a> = Arc<T>;
+  type Create<T: Copy + 'a> = Arc<T>;
   // Either we do need to be able to read as the original type but no writes are
   // possible, or writes are possible but we don't need to be able to read as
   // the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = ();
 }
 
@@ -255,29 +250,29 @@ pub struct ArcSliceT(PhantomData<Arc<[()]>>);
 #[cfg(target_has_atomic = "ptr")]
 #[cfg(feature = "extern_crate_alloc")]
 unsafe impl<'a> Ctor<'a> for ArcSliceT {
-  type Create<T: 'a> = Arc<[T]>;
+  type Create<T: Copy + 'a> = Arc<[T]>;
   // Either we do need to be able to read as the original type but no writes are
   // possible, or writes are possible but we don't need to be able to read as
   // the original type.
-  type Pointer<T: 'a> = OwningPtr<T>;
+  type Pointer<T: Copy + 'a> = OwningPtr<T>;
   type Metadata = usize;
 }
 
-//#[cfg(feature = "extern_crate_alloc")]
-//pub struct CowSliceT<'a>(PhantomData<Cow<'a, [()]>>);
-//#[cfg(feature = "extern_crate_alloc")]
-//unsafe impl<'a> Ctor<'a> for CowSliceT<'a> {
-//  type Create<T: 'a> = Cow<'a, [T]>;
-//  type Pointer<T: 'a> = *const T;
-//  type Metadata = CowSliceMetadata;
-//}
-//
-//#[cfg(feature = "extern_crate_alloc")]
-//#[derive(Clone, Copy)]
-//pub enum CowSliceMetadata {
-//  Borrowed(usize),
-//  Owned(VecMetadata),
-//}
+#[cfg(feature = "extern_crate_alloc")]
+pub struct CowSliceT<'a>(PhantomData<Cow<'a, [()]>>);
+#[cfg(feature = "extern_crate_alloc")]
+unsafe impl<'a> Ctor<'a> for CowSliceT<'a> {
+  type Create<T: Copy + 'a> = Cow<'a, [T]>;
+  type Pointer<T: Copy + 'a> = CowPtr<T>;
+  type Metadata = CowSliceMetadata;
+}
+
+#[cfg(feature = "extern_crate_alloc")]
+#[derive(Clone, Copy)]
+pub enum CowSliceMetadata {
+  Borrowed(usize),
+  Owned(VecMetadata),
+}
 
 /// A concrete container type. e.g `&'a T` or `Box<T>`
 ///
@@ -289,7 +284,7 @@ pub unsafe trait Container<'a> {
   /// The type constructor for this container.
   type Ctor: Ctor<'a, Create<Self::Item> = Self>;
   /// The item type held within this container.
-  type Item: 'a;
+  type Item: Copy + 'a;
 
   /// Converts the container into it's data pointer and associated metadata.
   fn into_parts(
@@ -322,7 +317,7 @@ pub unsafe trait Container<'a> {
   fn with_error(self, err: PodCastError) -> Self::Err;
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for &'a T {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for &'a T {
   type Ctor = RefT<'a>;
   type Item = T;
   fn into_parts(self) -> (SharedBorrowingPtr<T>, ()) {
@@ -338,7 +333,7 @@ unsafe impl<'a, T: 'a> Container<'a> for &'a T {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for &'a mut T {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for &'a mut T {
   type Ctor = MutT<'a>;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, ()) {
@@ -354,7 +349,7 @@ unsafe impl<'a, T: 'a> Container<'a> for &'a mut T {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for &'a [T] {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for &'a [T] {
   type Ctor = RefSliceT<'a>;
   type Item = T;
   fn into_parts(self) -> (SharedBorrowingPtr<T>, usize) {
@@ -370,7 +365,7 @@ unsafe impl<'a, T: 'a> Container<'a> for &'a [T] {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for &'a mut [T] {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for &'a mut [T] {
   type Ctor = MutSliceT<'a>;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, usize) {
@@ -386,7 +381,7 @@ unsafe impl<'a, T: 'a> Container<'a> for &'a mut [T] {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for *const T {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for *const T {
   type Ctor = ConstPtrT;
   type Item = T;
   fn into_parts(self) -> (SharedBorrowingPtr<T>, ()) {
@@ -402,7 +397,7 @@ unsafe impl<'a, T: 'a> Container<'a> for *const T {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for *mut T {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for *mut T {
   type Ctor = MutPtrT;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, ()) {
@@ -427,7 +422,7 @@ fn get_slice_ptr_length<T>(ptr: *const [T]) -> usize {
     .len();
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for *const [T] {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for *const [T] {
   type Ctor = ConstSlicePtrT;
   type Item = T;
   fn into_parts(self) -> (SharedBorrowingPtr<T>, usize) {
@@ -443,7 +438,7 @@ unsafe impl<'a, T: 'a> Container<'a> for *const [T] {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for *mut [T] {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for *mut [T] {
   type Ctor = MutSlicePtrT;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, usize) {
@@ -459,7 +454,7 @@ unsafe impl<'a, T: 'a> Container<'a> for *mut [T] {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for NonNull<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for NonNull<T> {
   type Ctor = NonNullT;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, ()) {
@@ -475,7 +470,7 @@ unsafe impl<'a, T: 'a> Container<'a> for NonNull<T> {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for NonNull<[T]> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for NonNull<[T]> {
   type Ctor = NonNullSliceT;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, usize) {
@@ -491,7 +486,7 @@ unsafe impl<'a, T: 'a> Container<'a> for NonNull<[T]> {
   }
 }
 
-unsafe impl<'a, T: 'a> Container<'a> for AtomicPtr<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for AtomicPtr<T> {
   type Ctor = AtomicPtrT;
   type Item = T;
   fn into_parts(self) -> (UniqueBorrowingPtr<T>, ()) {
@@ -579,7 +574,7 @@ where
 }
 
 #[cfg(feature = "extern_crate_alloc")]
-unsafe impl<'a, T: 'a> Container<'a> for Vec<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Vec<T> {
   type Ctor = VecT;
   type Item = T;
   fn into_parts(
@@ -609,7 +604,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Vec<T> {
 }
 
 #[cfg(feature = "extern_crate_alloc")]
-unsafe impl<'a, T: 'a> Container<'a> for Box<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Box<T> {
   type Ctor = BoxT;
   type Item = T;
   fn into_parts(
@@ -634,7 +629,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Box<T> {
 }
 
 #[cfg(feature = "extern_crate_alloc")]
-unsafe impl<'a, T: 'a> Container<'a> for Box<[T]> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Box<[T]> {
   type Ctor = BoxSliceT;
   type Item = T;
   fn into_parts(
@@ -661,7 +656,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Box<[T]> {
 }
 
 #[cfg(feature = "extern_crate_alloc")]
-unsafe impl<'a, T: 'a> Container<'a> for Rc<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Rc<T> {
   type Ctor = RcT;
   type Item = T;
   fn into_parts(
@@ -686,7 +681,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Rc<T> {
 }
 
 #[cfg(feature = "extern_crate_alloc")]
-unsafe impl<'a, T: 'a> Container<'a> for Rc<[T]> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Rc<[T]> {
   type Ctor = RcSliceT;
   type Item = T;
   fn into_parts(
@@ -715,7 +710,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Rc<[T]> {
 
 #[cfg(feature = "extern_crate_alloc")]
 #[cfg(target_has_atomic = "ptr")]
-unsafe impl<'a, T: 'a> Container<'a> for Arc<T> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Arc<T> {
   type Ctor = ArcT;
   type Item = T;
   fn into_parts(
@@ -741,7 +736,7 @@ unsafe impl<'a, T: 'a> Container<'a> for Arc<T> {
 
 #[cfg(feature = "extern_crate_alloc")]
 #[cfg(target_has_atomic = "ptr")]
-unsafe impl<'a, T: 'a> Container<'a> for Arc<[T]> {
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Arc<[T]> {
   type Ctor = ArcSliceT;
   type Item = T;
   fn into_parts(
@@ -760,6 +755,52 @@ unsafe impl<'a, T: 'a> Container<'a> for Arc<[T]> {
   ) -> Self {
     let ptr = core::ptr::slice_from_raw_parts(ptr.0, metadata);
     Arc::from_raw(ptr)
+  }
+
+  type Err = (Self, PodCastError);
+  fn with_error(self, err: PodCastError) -> Self::Err {
+    (self, err)
+  }
+}
+
+#[cfg(feature = "extern_crate_alloc")]
+unsafe impl<'a, T: Copy + 'a> Container<'a> for Cow<'a, [T]> {
+  type Ctor = CowSliceT<'a>;
+  type Item = T;
+  fn into_parts(
+    self,
+  ) -> (
+    <Self::Ctor as Ctor<'a>>::Pointer<Self::Item>,
+    <Self::Ctor as Ctor<'a>>::Metadata,
+  ) {
+    match self {
+      Cow::Borrowed(slice) => {
+        let (ptr, metadata) = slice.into_parts();
+        (CowPtr::Borrowed(ptr), CowSliceMetadata::Borrowed(metadata))
+      }
+      Cow::Owned(vec) => {
+        let (ptr, metadata) = vec.into_parts();
+        (CowPtr::Owned(ptr), CowSliceMetadata::Owned(metadata))
+      }
+    }
+  }
+  unsafe fn from_parts(
+    ptr: <Self::Ctor as Ctor<'a>>::Pointer<Self::Item>,
+    metadata: <Self::Ctor as Ctor<'a>>::Metadata,
+  ) -> Self {
+    match (ptr, metadata) {
+      (CowPtr::Borrowed(ptr), CowSliceMetadata::Borrowed(metadata)) => {
+        Cow::Borrowed(<&[_]>::from_parts(ptr, metadata))
+      }
+      (CowPtr::Owned(ptr), CowSliceMetadata::Owned(metadata)) => {
+        Cow::Owned(Vec::from_parts(ptr, metadata))
+      }
+      _ => {
+        unreachable!(
+          "ptr and metadata should both be Borrowed or both be Owned"
+        )
+      }
+    }
   }
 
   type Err = (Self, PodCastError);
@@ -817,6 +858,11 @@ pub struct UniqueBorrowingPtr<T>(*mut T);
 /// with.
 pub struct OwningPtr<T>(*mut T);
 
+pub enum CowPtr<T> {
+  Borrowed(SharedBorrowingPtr<T>),
+  Owned(OwningPtr<T>),
+}
+
 impl<T> Clone for SharedBorrowingPtr<T> {
   fn clone(&self) -> Self {
     *self
@@ -835,6 +881,12 @@ impl<T> Clone for OwningPtr<T> {
   }
 }
 impl<T> Copy for OwningPtr<T> {}
+impl<T> Clone for CowPtr<T> {
+  fn clone(&self) -> Self {
+    *self
+  }
+}
+impl<T> Copy for CowPtr<T> {}
 
 // SAFETY: `SharedBorrowingPtr` indicates that the original value cannot be used
 // to read anything written through the target type, so the source type only
@@ -887,6 +939,21 @@ where
       Some(OwningPtr(self.0 as *mut U))
     } else {
       None
+    }
+  }
+}
+
+unsafe impl<T, U> CastPtr<CowPtr<U>> for CowPtr<T>
+where
+  T: NoUninit,
+  U: AnyBitPattern,
+{
+  fn cast_ptr(self) -> Option<CowPtr<U>> {
+    match self {
+      CowPtr::Borrowed(slice_ptr) => {
+        Some(CowPtr::Borrowed(slice_ptr.cast_ptr()?))
+      }
+      CowPtr::Owned(vec_ptr) => Some(CowPtr::Owned(vec_ptr.cast_ptr()?)),
     }
   }
 }
@@ -971,6 +1038,8 @@ impl<T, U> CastContainer<T, U> for ArcT {
 #[cfg(feature = "extern_crate_alloc")]
 #[cfg(target_has_atomic = "ptr")]
 impl<T, U> CastContainer<T, U> for ArcSliceT {}
+#[cfg(feature = "extern_crate_alloc")]
+impl<'a, T, U> CastContainer<T, U> for CowSliceT<'a> {}
 
 /// Casts the metadata portion of a container.
 trait CastMetadata<T, U>: Sized {
@@ -1023,6 +1092,22 @@ impl<T, U> CastMetadata<T, U> for VecMetadata {
       } else {
         Err(PodCastError::SizeMismatch)
       }
+    }
+  }
+}
+
+#[cfg(feature = "extern_crate_alloc")]
+impl<T, U> CastMetadata<T, U> for CowSliceMetadata {
+  fn cast_metadata(self) -> Result<Self, PodCastError> {
+    match self {
+      CowSliceMetadata::Borrowed(slice_metadata) => {
+        Ok(CowSliceMetadata::Borrowed(
+          <usize as CastMetadata<T, U>>::cast_metadata(slice_metadata)?,
+        ))
+      }
+      CowSliceMetadata::Owned(vec_metadata) => Ok(CowSliceMetadata::Owned(
+        <VecMetadata as CastMetadata<T, U>>::cast_metadata(vec_metadata)?,
+      )),
     }
   }
 }
