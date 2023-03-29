@@ -31,6 +31,7 @@ unsound_ptr_pod_impl = []
 # NOT SEMVER SUPPORTED! TEMPORARY ONLY!
 nightly_portable_simd = []
 nightly_stdsimd = []
+nightly_slice_ptr_len = []
 
 [dependencies]
 bytemuck_derive = { version = "1.4", path = "derive", optional = true }
