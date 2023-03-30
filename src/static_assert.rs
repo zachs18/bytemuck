@@ -31,7 +31,7 @@ impl<T> AssertNonZeroSize for T {}
 
 pub trait AssertSameSize<T>: Sized {
   const ASSERT: () = {
-    if size_of::<Self>() == size_of::<T>() {
+    if size_of::<Self>() != size_of::<T>() {
       panic!("Attempt to cast between two types with different sizes");
     }
   };
@@ -60,7 +60,7 @@ impl<T, U> AssertSizeMultipleOf<U> for T {}
 
 pub trait AssertSameAlign<T>: Sized {
   const ASSERT: () = {
-    if align_of::<Self>() == align_of::<T>() {
+    if align_of::<Self>() != align_of::<T>() {
       panic!("Attempt to cast between two types with different alignments");
     }
   };
