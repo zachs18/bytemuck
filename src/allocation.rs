@@ -728,6 +728,7 @@ impl Drop for BoxBytes {
 }
 
 impl<T: ?Sized + sealed::BoxBytesOf> From<Box<T>> for BoxBytes {
+  /// See [`box_bytes_of`].
   fn from(value: Box<T>) -> Self {
     value.box_bytes_of()
   }
