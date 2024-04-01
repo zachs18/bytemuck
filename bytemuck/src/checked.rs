@@ -1,6 +1,8 @@
 //! Checked versions of the casting functions exposed in crate root
 //! that support [`CheckedBitPattern`] types.
 
+use core::marker::Freeze;
+
 use crate::{
   internal::{self, something_went_wrong},
   AnyBitPattern, NoUninit,
@@ -127,7 +129,7 @@ use crate::{
 ///
 /// [`is_valid_bit_pattern`]: CheckedBitPattern::is_valid_bit_pattern
 /// [`Pod`]: crate::Pod
-pub unsafe trait CheckedBitPattern: Copy {
+pub unsafe trait CheckedBitPattern {
   /// `Self` *must* have the same layout as the specified `Bits` except for
   /// the possible invalid bit patterns being checked during
   /// [`is_valid_bit_pattern`].
@@ -223,8 +225,8 @@ impl core::fmt::Display for CheckedCastError {
     write!(f, "{:?}", self)
   }
 }
-#[cfg(feature = "extern_crate_std")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_std")))]
+#[cfg(feature = "std")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "std")))]
 impl std::error::Error for CheckedCastError {}
 
 impl From<crate::PodCastError> for CheckedCastError {
@@ -241,9 +243,12 @@ impl From<crate::PodCastError> for CheckedCastError {
 /// * If the slice's length isn’t exactly the size of the new type
 /// * If the slice contains an invalid bit pattern for `T`
 #[inline]
-pub fn try_from_bytes<T: CheckedBitPattern>(
+pub fn try_from_bytes<T: CheckedBitPattern + Freeze>(
   s: &[u8],
-) -> Result<&T, CheckedCastError> {
+) -> Result<&T, CheckedCastError>
+where
+  T::Bits: Freeze,
+{
   let pod = crate::try_from_bytes(s)?;
 
   if <T as CheckedBitPattern>::is_valid_bit_pattern(pod) {
@@ -323,9 +328,12 @@ pub fn try_cast<A: NoUninit, B: CheckedBitPattern>(
 /// * If the source type and target type aren't the same size.
 /// * If `a` contains an invalid bit pattern for `B` this fails.
 #[inline]
-pub fn try_cast_ref<A: NoUninit, B: CheckedBitPattern>(
+pub fn try_cast_ref<A: NoUninit + Freeze, B: CheckedBitPattern + Freeze>(
   a: &A,
-) -> Result<&B, CheckedCastError> {
+) -> Result<&B, CheckedCastError>
+where
+  B::Bits: Freeze,
+{
   let pod = crate::try_cast_ref(a)?;
 
   if <B as CheckedBitPattern>::is_valid_bit_pattern(pod) {
@@ -372,9 +380,12 @@ pub fn try_cast_mut<
 /// * If any element of the converted slice would contain an invalid bit pattern
 ///   for `B` this fails.
 #[inline]
-pub fn try_cast_slice<A: NoUninit, B: CheckedBitPattern>(
+pub fn try_cast_slice<A: NoUninit + Freeze, B: CheckedBitPattern + Freeze>(
   a: &[A],
-) -> Result<&[B], CheckedCastError> {
+) -> Result<&[B], CheckedCastError>
+where
+  B::Bits: Freeze,
+{
   let pod = crate::try_cast_slice(a)?;
 
   if pod.iter().all(|pod| <B as CheckedBitPattern>::is_valid_bit_pattern(pod)) {
@@ -414,7 +425,10 @@ pub fn try_cast_slice_mut<
 ///
 /// This is [`try_from_bytes`] but will panic on error.
 #[inline]
-pub fn from_bytes<T: CheckedBitPattern>(s: &[u8]) -> &T {
+pub fn from_bytes<T: CheckedBitPattern + Freeze>(s: &[u8]) -> &T
+where
+  T::Bits: Freeze,
+{
   match try_from_bytes(s) {
     Ok(t) => t,
     Err(e) => something_went_wrong("from_bytes", e),
@@ -483,7 +497,12 @@ pub fn cast_mut<
 ///
 /// This is [`try_cast_ref`] but will panic on error.
 #[inline]
-pub fn cast_ref<A: NoUninit, B: CheckedBitPattern>(a: &A) -> &B {
+pub fn cast_ref<A: NoUninit + Freeze, B: CheckedBitPattern + Freeze>(
+  a: &A,
+) -> &B
+where
+  B::Bits: Freeze,
+{
   match try_cast_ref(a) {
     Ok(t) => t,
     Err(e) => something_went_wrong("cast_ref", e),
@@ -496,7 +515,12 @@ pub fn cast_ref<A: NoUninit, B: CheckedBitPattern>(a: &A) -> &B {
 ///
 /// This is [`try_cast_slice`] but will panic on error.
 #[inline]
-pub fn cast_slice<A: NoUninit, B: CheckedBitPattern>(a: &[A]) -> &[B] {
+pub fn cast_slice<A: NoUninit + Freeze, B: CheckedBitPattern + Freeze>(
+  a: &[A],
+) -> &[B]
+where
+  B::Bits: Freeze,
+{
   match try_cast_slice(a) {
     Ok(t) => t,
     Err(e) => something_went_wrong("cast_slice", e),

@@ -4,8 +4,9 @@
 //! versions exported in the crate root, `checked`, and `relaxed` modules.
 #![allow(unused_unsafe)]
 
+use core::mem::{align_of, size_of};
+
 use crate::PodCastError;
-use core::{marker::*, mem::*};
 
 /*
 
@@ -50,7 +51,7 @@ pub(crate) fn something_went_wrong<D>(_src: &str, _err: D) -> ! {
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline(always)]
-pub(crate) unsafe fn bytes_of<T: Copy>(t: &T) -> &[u8] {
+pub(crate) unsafe fn bytes_of<T>(t: &T) -> &[u8] {
   if size_of::<T>() == 0 {
     &[]
   } else {
@@ -66,7 +67,7 @@ pub(crate) unsafe fn bytes_of<T: Copy>(t: &T) -> &[u8] {
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline]
-pub(crate) unsafe fn bytes_of_mut<T: Copy>(t: &mut T) -> &mut [u8] {
+pub(crate) unsafe fn bytes_of_mut<T>(t: &mut T) -> &mut [u8] {
   if size_of::<T>() == 0 {
     &mut []
   } else {
@@ -83,7 +84,7 @@ pub(crate) unsafe fn bytes_of_mut<T: Copy>(t: &mut T) -> &mut [u8] {
 ///
 /// This is [`try_from_bytes`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn from_bytes<T: Copy>(s: &[u8]) -> &T {
+pub(crate) unsafe fn from_bytes<T>(s: &[u8]) -> &T {
   match try_from_bytes(s) {
     Ok(t) => t,
     Err(e) => something_went_wrong("from_bytes", e),
@@ -96,7 +97,7 @@ pub(crate) unsafe fn from_bytes<T: Copy>(s: &[u8]) -> &T {
 ///
 /// This is [`try_from_bytes_mut`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn from_bytes_mut<T: Copy>(s: &mut [u8]) -> &mut T {
+pub(crate) unsafe fn from_bytes_mut<T>(s: &mut [u8]) -> &mut T {
   match try_from_bytes_mut(s) {
     Ok(t) => t,
     Err(e) => something_went_wrong("from_bytes_mut", e),
@@ -108,7 +109,7 @@ pub(crate) unsafe fn from_bytes_mut<T: Copy>(s: &mut [u8]) -> &mut T {
 /// ## Failure
 /// * If the `bytes` length is not equal to `size_of::<T>()`.
 #[inline]
-pub(crate) unsafe fn try_pod_read_unaligned<T: Copy>(
+pub(crate) unsafe fn try_pod_read_unaligned<T>(
   bytes: &[u8],
 ) -> Result<T, PodCastError> {
   if bytes.len() != size_of::<T>() {
@@ -123,7 +124,7 @@ pub(crate) unsafe fn try_pod_read_unaligned<T: Copy>(
 /// ## Panics
 /// * This is like `try_pod_read_unaligned` but will panic on failure.
 #[inline]
-pub(crate) unsafe fn pod_read_unaligned<T: Copy>(bytes: &[u8]) -> T {
+pub(crate) unsafe fn pod_read_unaligned<T>(bytes: &[u8]) -> T {
   match try_pod_read_unaligned(bytes) {
     Ok(t) => t,
     Err(e) => something_went_wrong("pod_read_unaligned", e),
@@ -157,9 +158,7 @@ pub(crate) fn is_aligned_to(ptr: *const (), align: usize) -> bool {
 /// * If the slice isn't aligned for the new type
 /// * If the slice's length isn’t exactly the size of the new type
 #[inline]
-pub(crate) unsafe fn try_from_bytes<T: Copy>(
-  s: &[u8],
-) -> Result<&T, PodCastError> {
+pub(crate) unsafe fn try_from_bytes<T>(s: &[u8]) -> Result<&T, PodCastError> {
   if s.len() != size_of::<T>() {
     Err(PodCastError::SizeMismatch)
   } else if !is_aligned_to(s.as_ptr() as *const (), align_of::<T>()) {
@@ -176,7 +175,7 @@ pub(crate) unsafe fn try_from_bytes<T: Copy>(
 /// * If the slice isn't aligned for the new type
 /// * If the slice's length isn’t exactly the size of the new type
 #[inline]
-pub(crate) unsafe fn try_from_bytes_mut<T: Copy>(
+pub(crate) unsafe fn try_from_bytes_mut<T>(
   s: &mut [u8],
 ) -> Result<&mut T, PodCastError> {
   if s.len() != size_of::<T>() {
@@ -194,7 +193,7 @@ pub(crate) unsafe fn try_from_bytes_mut<T: Copy>(
 ///
 /// * This is like [`try_cast`](try_cast), but will panic on a size mismatch.
 #[inline]
-pub(crate) unsafe fn cast<A: Copy, B: Copy>(a: A) -> B {
+pub(crate) unsafe fn cast<A, B>(a: A) -> B {
   if size_of::<A>() == size_of::<B>() {
     unsafe { transmute!(a) }
   } else {
@@ -208,7 +207,7 @@ pub(crate) unsafe fn cast<A: Copy, B: Copy>(a: A) -> B {
 ///
 /// This is [`try_cast_mut`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn cast_mut<A: Copy, B: Copy>(a: &mut A) -> &mut B {
+pub(crate) unsafe fn cast_mut<A, B>(a: &mut A) -> &mut B {
   if size_of::<A>() == size_of::<B>() && align_of::<A>() >= align_of::<B>() {
     // Plz mr compiler, just notice that we can't ever hit Err in this case.
     match try_cast_mut(a) {
@@ -229,7 +228,7 @@ pub(crate) unsafe fn cast_mut<A: Copy, B: Copy>(a: &mut A) -> &mut B {
 ///
 /// This is [`try_cast_ref`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn cast_ref<A: Copy, B: Copy>(a: &A) -> &B {
+pub(crate) unsafe fn cast_ref<A, B>(a: &A) -> &B {
   if size_of::<A>() == size_of::<B>() && align_of::<A>() >= align_of::<B>() {
     // Plz mr compiler, just notice that we can't ever hit Err in this case.
     match try_cast_ref(a) {
@@ -250,7 +249,7 @@ pub(crate) unsafe fn cast_ref<A: Copy, B: Copy>(a: &A) -> &B {
 ///
 /// This is [`try_cast_slice`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn cast_slice<A: Copy, B: Copy>(a: &[A]) -> &[B] {
+pub(crate) unsafe fn cast_slice<A, B>(a: &[A]) -> &[B] {
   match try_cast_slice(a) {
     Ok(b) => b,
     Err(e) => something_went_wrong("cast_slice", e),
@@ -263,7 +262,7 @@ pub(crate) unsafe fn cast_slice<A: Copy, B: Copy>(a: &[A]) -> &[B] {
 ///
 /// This is [`try_cast_slice_mut`] but will panic on error.
 #[inline]
-pub(crate) unsafe fn cast_slice_mut<A: Copy, B: Copy>(a: &mut [A]) -> &mut [B] {
+pub(crate) unsafe fn cast_slice_mut<A, B>(a: &mut [A]) -> &mut [B] {
   match try_cast_slice_mut(a) {
     Ok(b) => b,
     Err(e) => something_went_wrong("cast_slice_mut", e),
@@ -281,9 +280,7 @@ pub(crate) unsafe fn cast_slice_mut<A: Copy, B: Copy>(a: &mut [A]) -> &mut [B] {
 ///
 /// * If the types don't have the same size this fails.
 #[inline]
-pub(crate) unsafe fn try_cast<A: Copy, B: Copy>(
-  a: A,
-) -> Result<B, PodCastError> {
+pub(crate) unsafe fn try_cast<A, B>(a: A) -> Result<B, PodCastError> {
   if size_of::<A>() == size_of::<B>() {
     Ok(unsafe { transmute!(a) })
   } else {
@@ -298,9 +295,7 @@ pub(crate) unsafe fn try_cast<A: Copy, B: Copy>(
 /// * If the reference isn't aligned in the new type
 /// * If the source type and target type aren't the same size.
 #[inline]
-pub(crate) unsafe fn try_cast_ref<A: Copy, B: Copy>(
-  a: &A,
-) -> Result<&B, PodCastError> {
+pub(crate) unsafe fn try_cast_ref<A, B>(a: &A) -> Result<&B, PodCastError> {
   // Note(Lokathor): everything with `align_of` and `size_of` will optimize away
   // after monomorphization.
   if align_of::<B>() > align_of::<A>()
@@ -318,7 +313,7 @@ pub(crate) unsafe fn try_cast_ref<A: Copy, B: Copy>(
 ///
 /// As [`try_cast_ref`], but `mut`.
 #[inline]
-pub(crate) unsafe fn try_cast_mut<A: Copy, B: Copy>(
+pub(crate) unsafe fn try_cast_mut<A, B>(
   a: &mut A,
 ) -> Result<&mut B, PodCastError> {
   // Note(Lokathor): everything with `align_of` and `size_of` will optimize away
@@ -350,7 +345,7 @@ pub(crate) unsafe fn try_cast_mut<A: Copy, B: Copy>(
 /// * Similarly, you can't convert between a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts)
 ///   and a non-ZST.
 #[inline]
-pub(crate) unsafe fn try_cast_slice<A: Copy, B: Copy>(
+pub(crate) unsafe fn try_cast_slice<A, B>(
   a: &[A],
 ) -> Result<&[B], PodCastError> {
   // Note(Lokathor): everything with `align_of` and `size_of` will optimize away
@@ -376,7 +371,7 @@ pub(crate) unsafe fn try_cast_slice<A: Copy, B: Copy>(
 ///
 /// As [`try_cast_slice`], but `&mut`.
 #[inline]
-pub(crate) unsafe fn try_cast_slice_mut<A: Copy, B: Copy>(
+pub(crate) unsafe fn try_cast_slice_mut<A, B>(
   a: &mut [A],
 ) -> Result<&mut [B], PodCastError> {
   // Note(Lokathor): everything with `align_of` and `size_of` will optimize away

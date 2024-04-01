@@ -1,4 +1,9 @@
-use super::*;
+use core::{
+  mem::size_of,
+  num::{
+    NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+  },
+};
 
 /// A trait indicating that:
 ///

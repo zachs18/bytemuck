@@ -1,10 +1,10 @@
 #![cfg(feature = "derive")]
 #![allow(dead_code)]
 
-use bytemuck::{ByteEq, ByteHash, Pod, TransparentWrapper, Zeroable};
+use bytemuck::{ByteEq, ByteHash, Pod, TransparentWrapper};
 use std::marker::PhantomData;
 
-#[derive(Copy, Clone, Pod, Zeroable, ByteEq, ByteHash)]
+#[derive(Copy, Clone, Pod, ByteEq, ByteHash)]
 #[repr(C)]
 struct Test {
   a: u16,

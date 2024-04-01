@@ -32,14 +32,14 @@ fn test_transparent_vtabled() {
 }
 
 #[test]
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 fn test_large_box_alloc() {
   type SuperPage = [[u8; 4096]; 4096];
   let _: Box<SuperPage> = try_zeroed_box().unwrap();
 }
 
 #[test]
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 fn test_zero_sized_box_alloc() {
   #[repr(align(4096))]
   struct Empty;
@@ -48,7 +48,7 @@ fn test_zero_sized_box_alloc() {
 }
 
 #[test]
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 fn test_try_from_box_bytes() {
   // Different layout: target alignment is greater than source alignment.
   assert_eq!(
@@ -93,7 +93,7 @@ fn test_try_from_box_bytes() {
 }
 
 #[test]
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 fn test_box_bytes_of() {
   assert_eq!(&*box_bytes_of(Box::new(*b"hello")), b"hello");
 

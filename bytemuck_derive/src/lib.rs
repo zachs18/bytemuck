@@ -10,10 +10,11 @@ use syn::{parse_macro_input, DeriveInput, Result};
 
 use crate::traits::{
   bytemuck_crate_name, AnyBitPattern, CheckedBitPattern, Contiguous, Derivable,
-  NoUninit, Pod, TransparentWrapper, Zeroable,
+  NoUninit, TransparentWrapper, Zeroable,
 };
 
-/// Derive the `Pod` trait for a struct
+/// Derive the `Pod` trait for a struct, by deriving `Zeroable`,
+/// `AnyBitPattern`, and `NoUninit`.
 ///
 /// The macro ensures that the struct follows all the the safety requirements
 /// for the `Pod` trait.
@@ -24,21 +25,21 @@ use crate::traits::{
 /// - The struct must be `#[repr(C)]` or `#[repr(transparent)]`
 /// - The struct must not contain any padding bytes
 /// - The struct contains no generic parameters, if it is not
-///   `#[repr(transparent)]`
+///   `#[repr(transparent)]` or `#[repr(packed(1))]`
 ///
 /// ## Examples
 ///
 /// ```rust
 /// # use std::marker::PhantomData;
-/// # use bytemuck_derive::{Pod, Zeroable};
-/// #[derive(Copy, Clone, Pod, Zeroable)]
+/// # use bytemuck_derive::Pod;
+/// #[derive(Copy, Clone, Pod)]
 /// #[repr(C)]
 /// struct Test {
 ///   a: u16,
 ///   b: u16,
 /// }
 ///
-/// #[derive(Copy, Clone, Pod, Zeroable)]
+/// #[derive(Copy, Clone, Pod)]
 /// #[repr(transparent)]
 /// struct Generic<A, B> {
 ///   a: A,
@@ -49,9 +50,9 @@ use crate::traits::{
 /// If the struct is generic, it must be `#[repr(transparent)]` also.
 ///
 /// ```compile_fail
-/// # use bytemuck::{Pod, Zeroable};
+/// # use bytemuck::Pod;
 /// # use std::marker::PhantomData;
-/// #[derive(Copy, Clone, Pod, Zeroable)]
+/// #[derive(Copy, Clone, Pod)]
 /// #[repr(C)] // must be `#[repr(transparent)]`
 /// struct Generic<A> {
 ///   a: A,
@@ -62,9 +63,9 @@ use crate::traits::{
 /// when all of its generics are `Pod`, not just its fields.
 ///
 /// ```
-/// # use bytemuck::{Pod, Zeroable};
+/// # use bytemuck::Pod;
 /// # use std::marker::PhantomData;
-/// #[derive(Copy, Clone, Pod, Zeroable)]
+/// #[derive(Copy, Clone, Pod)]
 /// #[repr(transparent)]
 /// struct Generic<A, B> {
 ///   a: A,
@@ -89,10 +90,17 @@ use crate::traits::{
 /// ```
 #[proc_macro_derive(Pod, attributes(bytemuck))]
 pub fn derive_pod(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  let expanded =
-    derive_marker_trait::<Pod>(parse_macro_input!(input as DeriveInput));
+  let input = parse_macro_input!(input as DeriveInput);
+  let expanded_nouninit = derive_marker_trait::<NoUninit>(input.clone());
+  let expanded_zeroable = derive_marker_trait::<Zeroable>(input.clone());
+  let expanded_anybitpattern =
+    derive_marker_trait::<AnyBitPattern>(input.clone());
 
-  proc_macro::TokenStream::from(expanded)
+  proc_macro::TokenStream::from(
+    [expanded_nouninit, expanded_zeroable, expanded_anybitpattern]
+      .into_iter()
+      .collect::<TokenStream>(),
+  )
 }
 
 /// Derive the `AnyBitPattern` trait for a struct
@@ -107,11 +115,16 @@ pub fn derive_pod(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub fn derive_anybitpattern(
   input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  let expanded = derive_marker_trait::<AnyBitPattern>(parse_macro_input!(
-    input as DeriveInput
-  ));
+  let input = parse_macro_input!(input as DeriveInput);
+  let expanded_zeroable = derive_marker_trait::<Zeroable>(input.clone());
+  let expanded_anybitpattern =
+    derive_marker_trait::<AnyBitPattern>(input.clone());
 
-  proc_macro::TokenStream::from(expanded)
+  proc_macro::TokenStream::from(
+    [expanded_zeroable, expanded_anybitpattern]
+      .into_iter()
+      .collect::<TokenStream>(),
+  )
 }
 
 /// Derive the `Zeroable` trait for a struct
@@ -554,13 +567,13 @@ fn derive_marker_trait_inner<Trait: Derivable>(
         syn::Data::Union(_) => {
           return Err(syn::Error::new_spanned(
             trait_,
-            &"perfect derive is not supported for unions",
+            "perfect derive is not supported for unions",
           ));
         }
         syn::Data::Enum(_) => {
           return Err(syn::Error::new_spanned(
             trait_,
-            &"perfect derive is not supported for enums",
+            "perfect derive is not supported for enums",
           ));
         }
       };
@@ -591,14 +604,6 @@ fn derive_marker_trait_inner<Trait: Derivable>(
   let asserts = Trait::asserts(&input, &crate_name)?;
   let (trait_impl_extras, trait_impl) = Trait::trait_impl(&input, &crate_name)?;
 
-  let implies_trait = if let Some(implies_trait) =
-    Trait::implies_trait(&crate_name)
-  {
-    quote!(unsafe impl #impl_generics #implies_trait for #name #ty_generics #where_clause {})
-  } else {
-    quote!()
-  };
-
   let where_clause =
     if Trait::requires_where_clause() { where_clause } else { None };
 
@@ -610,8 +615,6 @@ fn derive_marker_trait_inner<Trait: Derivable>(
     unsafe impl #impl_generics #trait_ for #name #ty_generics #where_clause {
       #trait_impl
     }
-
-    #implies_trait
   })
 }
 

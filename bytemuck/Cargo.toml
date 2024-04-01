@@ -1,0 +1,55 @@
+[package]
+name = "bytemuck"
+description = "A crate for mucking around with piles of bytes."
+version = "2.0.0-alpha1"
+authors = ["Lokathor <zefria@gmail.com>"]
+repository = "https://github.com/Lokathor/bytemuck"
+readme = "README.md"
+keywords = ["transmute", "bytes", "casting"]
+categories = ["encoding", "no-std"]
+edition = "2021"
+license = "Zlib OR Apache-2.0 OR MIT"
+# rust-version = "whenever Freeze is stabilized"
+exclude = ["/pedantic.bat"]
+
+[features]
+derive = ["bytemuck_derive"]
+alloc = []
+std = ["alloc"]
+
+# All MSRV notes below are GUIDELINES and future versions may require even more
+# MSRV on any feature.
+
+# MSRV 1.36: Use `align_offset` method instead of casting to `usize` to check
+# alignment of pointers, this *may* improve codegen in some cases (but it has
+# never been formally benchmarked!)
+align_offset = []
+
+# NOT SEMVER SUPPORTED! May be removed or made the default depending on the
+# resolution of https://github.com/rust-lang/unsafe-code-guidelines/issues/286
+unstable_pod_pointers = []
+
+# NOT SEMVER SUPPORTED! TEMPORARY ONLY!
+nightly_portable_simd = []
+nightly_stdsimd = []
+
+# Improved documentation using the nightly toolchain
+nightly_docs = []
+
+[dependencies]
+bytemuck_derive = { version = "2.0.0-alpha1", path = "../bytemuck_derive", optional = true }
+
+[package.metadata.docs.rs]
+features = [
+  "nightly_docs",
+  "derive",
+  "alloc",
+  "std",
+]
+
+[package.metadata.playground]
+features = [
+  "derive",
+  "alloc",
+  "std",
+]

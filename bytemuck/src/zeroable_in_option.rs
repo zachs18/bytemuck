@@ -1,4 +1,11 @@
-use super::*;
+use crate::Zeroable;
+use core::{
+  num::{
+    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize,
+    NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+  },
+  ptr::NonNull,
+};
 
 // Note(Lokathor): This is the neat part!!
 unsafe impl<T: ZeroableInOption> Zeroable for Option<T> {}
@@ -30,6 +37,6 @@ unsafe impl<T: ?Sized> ZeroableInOption for NonNull<T> {}
 unsafe impl<T: ?Sized> ZeroableInOption for &'_ T {}
 unsafe impl<T: ?Sized> ZeroableInOption for &'_ mut T {}
 
-#[cfg(feature = "extern_crate_alloc")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_alloc")))]
+#[cfg(feature = "alloc")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "alloc")))]
 unsafe impl<T: ?Sized> ZeroableInOption for alloc::boxed::Box<T> {}

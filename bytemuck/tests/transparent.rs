@@ -18,7 +18,8 @@ fn test_transparent_wrapper() {
 
   // Traits can be implemented on crate-local wrapper.
   unsafe impl bytemuck::Zeroable for Wrapper {}
-  unsafe impl bytemuck::Pod for Wrapper {}
+  unsafe impl bytemuck::AnyBitPattern for Wrapper {}
+  unsafe impl bytemuck::NoUninit for Wrapper {}
 
   impl PartialEq<u8> for Foreign {
     fn eq(&self, &other: &u8) -> bool {
@@ -74,7 +75,7 @@ fn test_transparent_wrapper() {
   ]));
   // counterpart?
 
-  #[cfg(feature = "extern_crate_alloc")]
+  #[cfg(feature = "alloc")]
   {
     use bytemuck::allocation::TransparentWrapperAlloc;
     use std::rc::Rc;

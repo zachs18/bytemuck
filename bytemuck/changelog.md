@@ -1,5 +1,24 @@
 # `bytemuck` changelog
 
+## 2.0.0-alpha1
+
+* Update to 2021 edition.
+* MSRV (whever `core::mem::Freeze` is stabilized, nightly-only for now)
+  * TODO: decide on MSRV policy
+* Update to edition 2021
+* Restructure the trait hierarchy.
+  * `Pod` now has a supertrait bound on and blanket impl for `T: NoUninit + AnyBitPattern`, and cannot be implemented manually.
+* Relaxed requirements for main traits: (bounds are moved to the relevant functions)
+  * `Sized` is no longer required.
+  * `Copy` is no longer required.
+  * `'static` is no longer required
+  * Interior mutability is no longer disallowed. Casting functions which would be incompatible with interior mutability now have a `core::mem::Freeze` bound.
+* Rename `extern_crate_alloc` feature to `alloc`, and `extern_crate_std` feature to `std`
+* Remove `zeroable_maybe_uninit`, `zeroable_atomics`, `wasm_simd`, `aarch64_simd`, `must_cast` features; their APIs are available without a feature flag now.
+* TODO: decide on `unstable_pod_pointers` once https://github.com/rust-lang/unsafe-code-guidelines/issues/286 is resolved
+* TODO: decide on if to allow unsized implementors of `CheckedBitPattern`.
+* Restructured repo into a workspace with `bytemuck` and `bytemuck_derive`
+
 ## 1.15.0
 
 This primarily relaxes the bounds on a `From` impl.

@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(freeze)]
 #![warn(missing_docs)]
 #![allow(clippy::match_like_matches_macro)]
 #![allow(clippy::uninlined_format_args)]
@@ -74,8 +75,7 @@
 //! increase their MSRV in new versions.
 //!
 //! * `derive`: Provide derive macros for the various traits.
-//! * `extern_crate_alloc`: Provide utilities for `alloc` related types such as
-//!   Box and Vec.
+//! * `alloc`: Provide utilities for `alloc` related types such as Box and Vec.
 //! * `zeroable_maybe_uninit` and `zeroable_atomics`: Provide more [`Zeroable`]
 //!   impls.
 //! * `wasm_simd` and `aarch64_simd`: Support more SIMD types.
@@ -84,29 +84,13 @@
 //! * `must_cast`: Provides the `must_` functions, which will compile error if
 //!   the requested cast can't be statically verified.
 
-#[cfg(all(target_arch = "aarch64", feature = "aarch64_simd"))]
-use core::arch::aarch64;
-#[cfg(all(target_arch = "wasm32", feature = "wasm_simd"))]
-use core::arch::wasm32;
-#[cfg(target_arch = "x86")]
-use core::arch::x86;
-#[cfg(target_arch = "x86_64")]
-use core::arch::x86_64;
-//
-use core::{marker::*, mem::*, num::*, ptr::*};
+use core::marker::Freeze;
 
 // Used from macros to ensure we aren't using some locally defined name and
 // actually are referencing libcore. This also would allow pre-2018 edition
 // crates to use our macros, but I'm not sure how important that is.
 #[doc(hidden)]
 pub use ::core as __core;
-
-#[cfg(not(feature = "min_const_generics"))]
-macro_rules! impl_unsafe_marker_for_array {
-  ( $marker:ident , $( $n:expr ),* ) => {
-    $(unsafe impl<T> $marker for [T; $n] where T: $marker {})*
-  }
-}
 
 /// A macro to transmute between two types without requiring knowing size
 /// statically.
@@ -121,29 +105,31 @@ macro_rules! transmute {
 /// with relevant cargo features enabled.
 #[allow(unused)]
 macro_rules! impl_unsafe_marker_for_simd {
-  ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for $platform:ident :: {}) => {};
-  ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for $platform:ident :: { $first_type:ident $(, $types:ident)* $(,)? }) => {
+  ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for core::arch::$platform:ident :: {}) => {};
+  ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for core::arch::$platform:ident :: { $first_type:ident $(, $types:ident)* $(,)? }) => {
     $( #[cfg($cfg_predicate)] )?
     $( #[cfg_attr(feature = "nightly_docs", doc(cfg($cfg_predicate)))] )?
-    unsafe impl $trait for $platform::$first_type {}
+    unsafe impl $trait for core::arch::$platform::$first_type {}
     $( #[cfg($cfg_predicate)] )? // To prevent recursion errors if nothing is going to be expanded anyway.
-    impl_unsafe_marker_for_simd!($( #[cfg($cfg_predicate)] )? unsafe impl $trait for $platform::{ $( $types ),* });
+    impl_unsafe_marker_for_simd!($( #[cfg($cfg_predicate)] )? unsafe impl $trait for core::arch::$platform::{ $( $types ),* });
   };
 }
 
-#[cfg(feature = "extern_crate_std")]
+#[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "extern_crate_alloc")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_alloc")))]
+#[cfg(feature = "alloc")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "alloc")))]
 pub mod allocation;
-#[cfg(feature = "extern_crate_alloc")]
+#[cfg(feature = "alloc")]
 pub use allocation::*;
 
 mod anybitpattern;
 pub use anybitpattern::*;
+mod anybitpattern_in_option;
+pub use anybitpattern_in_option::*;
 
 pub mod checked;
 pub use checked::CheckedBitPattern;
@@ -157,24 +143,17 @@ pub use zeroable_in_option::*;
 
 mod pod;
 pub use pod::*;
-mod pod_in_option;
-pub use pod_in_option::*;
 
-#[cfg(feature = "must_cast")]
 mod must;
-#[cfg(feature = "must_cast")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "must_cast")))]
 pub use must::*;
 
-mod no_uninit;
-pub use no_uninit::*;
+mod nouninit;
+pub use nouninit::*;
+mod nouninit_in_option;
+pub use nouninit_in_option::*;
 
 mod contiguous;
 pub use contiguous::*;
-
-mod offset_of;
-// ^ no import, the module only has a macro_rules, which are cursed and don't
-// follow normal import/export rules.
 
 mod transparent;
 pub use transparent::*;
@@ -214,8 +193,8 @@ impl core::fmt::Display for PodCastError {
     write!(f, "{:?}", self)
   }
 }
-#[cfg(feature = "extern_crate_std")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_std")))]
+#[cfg(feature = "std")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "std")))]
 impl std::error::Error for PodCastError {}
 
 /// Re-interprets `&T` as `&[u8]`.
@@ -223,7 +202,7 @@ impl std::error::Error for PodCastError {}
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline]
-pub fn bytes_of<T: NoUninit>(t: &T) -> &[u8] {
+pub fn bytes_of<T: NoUninit + Freeze>(t: &T) -> &[u8] {
   unsafe { internal::bytes_of(t) }
 }
 
@@ -242,7 +221,7 @@ pub fn bytes_of_mut<T: NoUninit + AnyBitPattern>(t: &mut T) -> &mut [u8] {
 ///
 /// This is like [`try_from_bytes`] but will panic on error.
 #[inline]
-pub fn from_bytes<T: AnyBitPattern>(s: &[u8]) -> &T {
+pub fn from_bytes<T: AnyBitPattern + Freeze>(s: &[u8]) -> &T {
   unsafe { internal::from_bytes(s) }
 }
 
@@ -289,7 +268,9 @@ pub fn pod_read_unaligned<T: AnyBitPattern>(bytes: &[u8]) -> T {
 /// * If the slice isn't aligned for the new type
 /// * If the slice's length isn’t exactly the size of the new type
 #[inline]
-pub fn try_from_bytes<T: AnyBitPattern>(s: &[u8]) -> Result<&T, PodCastError> {
+pub fn try_from_bytes<T: AnyBitPattern + Freeze>(
+  s: &[u8],
+) -> Result<&T, PodCastError> {
   unsafe { internal::try_from_bytes(s) }
 }
 
@@ -334,7 +315,7 @@ pub fn cast_mut<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
 ///
 /// This is [`try_cast_ref`] but will panic on error.
 #[inline]
-pub fn cast_ref<A: NoUninit, B: AnyBitPattern>(a: &A) -> &B {
+pub fn cast_ref<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(a: &A) -> &B {
   unsafe { internal::cast_ref(a) }
 }
 
@@ -344,7 +325,9 @@ pub fn cast_ref<A: NoUninit, B: AnyBitPattern>(a: &A) -> &B {
 ///
 /// This is [`try_cast_slice`] but will panic on error.
 #[inline]
-pub fn cast_slice<A: NoUninit, B: AnyBitPattern>(a: &[A]) -> &[B] {
+pub fn cast_slice<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
+  a: &[A],
+) -> &[B] {
   unsafe { internal::cast_slice(a) }
 }
 
@@ -366,7 +349,7 @@ pub fn cast_slice_mut<
 /// As [`align_to`](https://doc.rust-lang.org/std/primitive.slice.html#method.align_to),
 /// but safe because of the [`Pod`] bound.
 #[inline]
-pub fn pod_align_to<T: NoUninit, U: AnyBitPattern>(
+pub fn pod_align_to<T: NoUninit + Freeze, U: AnyBitPattern + Freeze>(
   vals: &[T],
 ) -> (&[T], &[U], &[T]) {
   unsafe { vals.align_to::<U>() }
@@ -408,7 +391,7 @@ pub fn try_cast<A: NoUninit, B: AnyBitPattern>(
 /// * If the reference isn't aligned in the new type
 /// * If the source type and target type aren't the same size.
 #[inline]
-pub fn try_cast_ref<A: NoUninit, B: AnyBitPattern>(
+pub fn try_cast_ref<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   a: &A,
 ) -> Result<&B, PodCastError> {
   unsafe { internal::try_cast_ref(a) }
@@ -443,7 +426,7 @@ pub fn try_cast_mut<
 /// * Similarly, you can't convert between a [ZST](https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts)
 ///   and a non-ZST.
 #[inline]
-pub fn try_cast_slice<A: NoUninit, B: AnyBitPattern>(
+pub fn try_cast_slice<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   a: &[A],
 ) -> Result<&[B], PodCastError> {
   unsafe { internal::try_cast_slice(a) }
@@ -467,42 +450,7 @@ pub fn try_cast_slice_mut<
 ///
 /// This is similar to `*target = Zeroable::zeroed()`, but guarantees that any
 /// padding bytes in `target` are zeroed as well.
-///
-/// See also [`fill_zeroes`], if you have a slice rather than a single value.
 #[inline]
-pub fn write_zeroes<T: Zeroable>(target: &mut T) {
-  struct EnsureZeroWrite<T>(*mut T);
-  impl<T> Drop for EnsureZeroWrite<T> {
-    #[inline(always)]
-    fn drop(&mut self) {
-      unsafe {
-        core::ptr::write_bytes(self.0, 0u8, 1);
-      }
-    }
-  }
-  unsafe {
-    let guard = EnsureZeroWrite(target);
-    core::ptr::drop_in_place(guard.0);
-    drop(guard);
-  }
-}
-
-/// Fill all bytes of `slice` with zeroes (see [`Zeroable`]).
-///
-/// This is similar to `slice.fill(Zeroable::zeroed())`, but guarantees that any
-/// padding bytes in `slice` are zeroed as well.
-///
-/// See also [`write_zeroes`], which zeroes all bytes of a single value rather
-/// than a slice.
-#[inline]
-pub fn fill_zeroes<T: Zeroable>(slice: &mut [T]) {
-  if core::mem::needs_drop::<T>() {
-    // If `T` needs to be dropped then we have to do this one item at a time, in
-    // case one of the intermediate drops does a panic.
-    slice.iter_mut().for_each(write_zeroes);
-  } else {
-    // Otherwise we can be really fast and just fill everthing with zeros.
-    let len = core::mem::size_of_val::<[T]>(slice);
-    unsafe { core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0u8, len) }
-  }
+pub fn write_zeroes<T: Zeroable + ?Sized>(target: &mut T) {
+  target.write_zero()
 }

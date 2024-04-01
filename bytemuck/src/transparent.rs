@@ -1,4 +1,7 @@
-use super::*;
+use core::{
+  alloc::Layout,
+  mem::{align_of, size_of},
+};
 
 /// A trait which indicates that a type is a `#[repr(transparent)]` wrapper
 /// around the `Inner` value.
@@ -89,9 +92,8 @@ use super::*;
 ///
 /// ## Deriving
 ///
-/// When deriving, the non-wrapped fields must uphold all the normal requirements,
-/// and must also be `Zeroable`.
-///
+/// When deriving, the non-wrapped fields must uphold all the normal
+/// requirements, and must also be `Zeroable`.
 #[cfg_attr(feature = "derive", doc = "```")]
 #[cfg_attr(
   not(feature = "derive"),
@@ -108,7 +110,6 @@ use super::*;
 /// ```
 ///
 /// Here, an error will occur, because `MyZst` does not implement `Zeroable`.
-///
 #[cfg_attr(feature = "derive", doc = "```compile_fail")]
 #[cfg_attr(
   not(feature = "derive"),
@@ -131,6 +132,7 @@ pub unsafe trait TransparentWrapper<Inner: ?Sized> {
     Self: Sized,
     Inner: Sized,
   {
+    assert!(Layout::new::<Inner>() == Layout::new::<Self>());
     // SAFETY: The unsafe contract requires that `Self` and `Inner` have
     // identical representations.
     unsafe { transmute!(s) }
@@ -140,6 +142,11 @@ pub unsafe trait TransparentWrapper<Inner: ?Sized> {
   /// type.
   #[inline]
   fn wrap_ref(s: &Inner) -> &Self {
+    // The unsafe contract requires that these two have
+    // identical representations, and thus identical pointer metadata.
+    // Assert that Self and Inner have the same pointer size,
+    // which is about the best we can do on stable.
+    assert!(Layout::new::<*const Inner>() == Layout::new::<*const Self>());
     unsafe {
       assert!(size_of::<*const Inner>() == size_of::<*const Self>());
       // A pointer cast doesn't work here because rustc can't tell that
@@ -180,8 +187,7 @@ pub unsafe trait TransparentWrapper<Inner: ?Sized> {
     Inner: Sized,
   {
     unsafe {
-      assert!(size_of::<*const Inner>() == size_of::<*const Self>());
-      assert!(align_of::<*const Inner>() == align_of::<*const Self>());
+      assert!(Layout::new::<Inner>() == Layout::new::<Self>());
       // SAFETY: The unsafe contract requires that these two have
       // identical representations (size and alignment).
       core::slice::from_raw_parts(s.as_ptr() as *const Self, s.len())

@@ -1,15 +1,13 @@
-#![cfg(feature = "extern_crate_alloc")]
+#![cfg(feature = "alloc")]
 
 //! Stuff to boost things in the `alloc` crate.
 //!
-//! * You must enable the `extern_crate_alloc` feature of `bytemuck` or you will
-//!   not be able to use this module! This is generally done by adding the
-//!   feature to the dependency in Cargo.toml like so:
+//! * You must enable the `alloc` feature of `bytemuck` or you will not be able
+//!   to use this module! This is generally done by adding the feature to the
+//!   dependency in Cargo.toml like so:
 //!
-//!   `bytemuck = { version = "VERSION_YOU_ARE_USING", features =
-//! ["extern_crate_alloc"]}`
+//!   `bytemuck = { version = "VERSION_YOU_ARE_USING", features = ["alloc"] }`
 
-use super::*;
 #[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 use alloc::{
@@ -19,7 +17,16 @@ use alloc::{
   vec,
   vec::Vec,
 };
-use core::ops::{Deref, DerefMut};
+use core::{
+  marker::Freeze,
+  mem::{align_of, size_of, size_of_val, ManuallyDrop},
+  ops::{Deref, DerefMut},
+  ptr::NonNull,
+};
+
+use crate::{
+  AnyBitPattern, NoUninit, PodCastError, TransparentWrapper, Zeroable,
+};
 
 /// As [`try_cast_box`](try_cast_box), but unwraps for you.
 #[inline]
@@ -283,7 +290,10 @@ pub fn try_cast_vec<A: NoUninit, B: AnyBitPattern>(
 ///   assert_eq!(&vec_of_words[..], &[0x0005_0006, 0x0007_0008][..])
 /// }
 /// ```
-pub fn pod_collect_to_vec<A: NoUninit, B: NoUninit + AnyBitPattern>(
+pub fn pod_collect_to_vec<
+  A: NoUninit + Freeze,
+  B: NoUninit + AnyBitPattern + Copy,
+>(
   src: &[A],
 ) -> Vec<B> {
   let src_size = size_of_val(src);
@@ -293,15 +303,15 @@ pub fn pod_collect_to_vec<A: NoUninit, B: NoUninit + AnyBitPattern>(
     + if src_size % size_of::<B>() != 0 { 1 } else { 0 };
   let mut dst = vec![B::zeroed(); dst_count];
 
-  let src_bytes: &[u8] = cast_slice(src);
-  let dst_bytes: &mut [u8] = cast_slice_mut(&mut dst[..]);
+  let src_bytes: &[u8] = crate::cast_slice(src);
+  let dst_bytes: &mut [u8] = crate::cast_slice_mut(&mut dst[..]);
   dst_bytes[..src_size].copy_from_slice(src_bytes);
   dst
 }
 
 /// As [`try_cast_rc`](try_cast_rc), but unwraps for you.
 #[inline]
-pub fn cast_rc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
+pub fn cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Rc<A>,
 ) -> Rc<B> {
   try_cast_rc(input).map_err(|(e, _v)| e).unwrap()
@@ -321,7 +331,7 @@ pub fn cast_rc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
 ///   alignment.
 /// * The start and end size of the `Rc` must have the exact same size.
 #[inline]
-pub fn try_cast_rc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
+pub fn try_cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Rc<A>,
 ) -> Result<Rc<B>, (PodCastError, Rc<A>)> {
   if align_of::<A>() != align_of::<B>() {
@@ -338,7 +348,7 @@ pub fn try_cast_rc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
 /// As [`try_cast_arc`](try_cast_arc), but unwraps for you.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
-pub fn cast_arc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
+pub fn cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<A>,
 ) -> Arc<B> {
   try_cast_arc(input).map_err(|(e, _v)| e).unwrap()
@@ -359,10 +369,7 @@ pub fn cast_arc<A: NoUninit + AnyBitPattern, B: NoUninit + AnyBitPattern>(
 /// * The start and end size of the `Arc` must have the exact same size.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
-pub fn try_cast_arc<
-  A: NoUninit + AnyBitPattern,
-  B: NoUninit + AnyBitPattern,
->(
+pub fn try_cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<A>,
 ) -> Result<Arc<B>, (PodCastError, Arc<A>)> {
   if align_of::<A>() != align_of::<B>() {

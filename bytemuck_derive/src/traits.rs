@@ -22,16 +22,17 @@ macro_rules! bail {
 
 pub trait Derivable {
   fn ident(input: &DeriveInput, crate_name: &TokenStream) -> Result<syn::Path>;
-  fn implies_trait(_crate_name: &TokenStream) -> Option<TokenStream> {
-    None
-  }
-  fn asserts(_input: &DeriveInput, _crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    _input: &DeriveInput, _crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     Ok(quote!())
   }
   fn check_attributes(_ty: &Data, _attributes: &[Attribute]) -> Result<()> {
     Ok(())
   }
-  fn trait_impl(_input: &DeriveInput, _crate_name: &TokenStream) -> Result<(TokenStream, TokenStream)> {
+  fn trait_impl(
+    _input: &DeriveInput, _crate_name: &TokenStream,
+  ) -> Result<(TokenStream, TokenStream)> {
     Ok((quote!(), quote!()))
   }
   fn requires_where_clause() -> bool {
@@ -49,7 +50,9 @@ impl Derivable for Pod {
     Ok(syn::parse_quote!(#crate_name::Pod))
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     let repr = get_repr(&input.attrs)?;
 
     let completly_packed =
@@ -102,14 +105,14 @@ impl Derivable for AnyBitPattern {
     Ok(syn::parse_quote!(#crate_name::AnyBitPattern))
   }
 
-  fn implies_trait(crate_name: &TokenStream) -> Option<TokenStream> {
-    Some(quote!(#crate_name::Zeroable))
-  }
-
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     match &input.data {
       Data::Union(_) => Ok(quote!()), // unions are always `AnyBitPattern`
-      Data::Struct(_) => generate_fields_are_trait(input, Self::ident(input, crate_name)?),
+      Data::Struct(_) => {
+        generate_fields_are_trait(input, Self::ident(input, crate_name)?)
+      }
       Data::Enum(_) => {
         bail!("Deriving AnyBitPattern is not supported for enums")
       }
@@ -124,10 +127,14 @@ impl Derivable for Zeroable {
     Ok(syn::parse_quote!(#crate_name::Zeroable))
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     match &input.data {
       Data::Union(_) => Ok(quote!()), // unions are always `Zeroable`
-      Data::Struct(_) => generate_fields_are_trait(input, Self::ident(input, crate_name)?),
+      Data::Struct(_) => {
+        generate_fields_are_trait(input, Self::ident(input, crate_name)?)
+      }
       Data::Enum(_) => bail!("Deriving Zeroable is not supported for enums"),
     }
   }
@@ -160,21 +167,32 @@ impl Derivable for NoUninit {
     }
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
-    if !input.generics.params.is_empty() {
-      bail!("NoUninit cannot be derived for structs containing generic parameters because the padding requirements can't be verified for generic structs");
-    }
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
+    let repr = get_repr(&input.attrs)?;
 
     match &input.data {
-      Data::Struct(DataStruct { .. }) => {
-        let assert_no_padding = generate_assert_no_padding(&input)?;
-        let assert_fields_are_no_padding =
-          generate_fields_are_trait(&input, Self::ident(input, crate_name)?)?;
-
-        Ok(quote!(
-            #assert_no_padding
-            #assert_fields_are_no_padding
-        ))
+      Data::Struct(_) => {
+        if repr.packed == Some(1) || repr.repr == Repr::Transparent {
+          // `repr(packed(1))`` and `repr(transparent)`
+          // only require the fields are NoUninit, which is already checked.
+          Ok(quote!())
+        } else if !input.generics.params.is_empty() {
+          bail!(concat!(
+            "NoUninit cannot be derived for non-`repr(packed)` structs",
+            " containing generic parameters because the padding",
+            " requirements cannot be verified"
+          ));
+        } else {
+          let assert_no_padding = generate_assert_no_padding(&input)?;
+          let assert_fields_are_no_padding =
+            generate_fields_are_trait(&input, Self::ident(input, crate_name)?)?;
+          Ok(quote!(
+              #assert_no_padding
+              #assert_fields_are_no_padding
+          ))
+        }
       }
       Data::Enum(DataEnum { variants, .. }) => {
         if variants.iter().any(|variant| !variant.fields.is_empty()) {
@@ -187,7 +205,9 @@ impl Derivable for NoUninit {
     }
   }
 
-  fn trait_impl(_input: &DeriveInput, _crate_name: &TokenStream) -> Result<(TokenStream, TokenStream)> {
+  fn trait_impl(
+    _input: &DeriveInput, _crate_name: &TokenStream,
+  ) -> Result<(TokenStream, TokenStream)> {
     Ok((quote!(), quote!()))
   }
 }
@@ -223,7 +243,9 @@ impl Derivable for CheckedBitPattern {
     }
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     if !input.generics.params.is_empty() {
       bail!("CheckedBitPattern cannot be derived for structs containing generic parameters");
     }
@@ -235,15 +257,23 @@ impl Derivable for CheckedBitPattern {
 
         Ok(assert_fields_are_maybe_pod)
       }
-      Data::Enum(_) => Ok(quote!()), /* nothing needed, already guaranteed OK by NoUninit */
+      Data::Enum(_) => Ok(quote!()), /* nothing needed, already guaranteed */
+      // OK by NoUninit
       Data::Union(_) => bail!("Internal error in CheckedBitPattern derive"), /* shouldn't be possible since we already error in attribute check for this case */
     }
   }
 
-  fn trait_impl(input: &DeriveInput, crate_name: &TokenStream) -> Result<(TokenStream, TokenStream)> {
+  fn trait_impl(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<(TokenStream, TokenStream)> {
     match &input.data {
       Data::Struct(DataStruct { fields, .. }) => {
-        generate_checked_bit_pattern_struct(&input.ident, fields, &input.attrs, crate_name)
+        generate_checked_bit_pattern_struct(
+          &input.ident,
+          fields,
+          &input.attrs,
+          crate_name,
+        )
       }
       Data::Enum(DataEnum { variants, .. }) => {
         generate_checked_bit_pattern_enum(input, variants, crate_name)
@@ -290,7 +320,9 @@ impl Derivable for TransparentWrapper {
     Ok(syn::parse_quote!(#crate_name::TransparentWrapper<#ty>))
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     let (impl_generics, _ty_generics, where_clause) =
       input.generics.split_for_impl();
     let fields = get_struct_fields(input)?;
@@ -356,7 +388,9 @@ impl Derivable for Contiguous {
     Ok(syn::parse_quote!(#crate_name::Contiguous))
   }
 
-  fn trait_impl(input: &DeriveInput, _crate_name: &TokenStream) -> Result<(TokenStream, TokenStream)> {
+  fn trait_impl(
+    input: &DeriveInput, _crate_name: &TokenStream,
+  ) -> Result<(TokenStream, TokenStream)> {
     let repr = get_repr(&input.attrs)?;
 
     let integer_ty = if let Some(integer_ty) = repr.repr.as_integer() {
@@ -397,9 +431,9 @@ impl Derivable for Contiguous {
     let min_lit = LitInt::new(&format!("{}", min), input.span());
     let max_lit = LitInt::new(&format!("{}", max), input.span());
 
-    // `from_integer` and `into_integer` are usually provided by the trait's default implementation.
-    // We override this implementation because it goes through `transmute_copy`, which can lead to
-    // inefficient assembly as seen in https://github.com/Lokathor/bytemuck/issues/175 .
+    // `from_integer` and `into_integer` are usually provided by the trait's
+    // default implementation. We override this implementation because it
+    // goes through `transmute_copy`, which can lead to inefficient assembly as seen in https://github.com/Lokathor/bytemuck/issues/175 .
 
     Ok((
       quote!(),
@@ -460,7 +494,8 @@ fn get_field_types<'a>(
 }
 
 fn generate_checked_bit_pattern_struct(
-  input_ident: &Ident, fields: &Fields, attrs: &[Attribute], crate_name: &TokenStream
+  input_ident: &Ident, fields: &Fields, attrs: &[Attribute],
+  crate_name: &TokenStream,
 ) -> Result<(TokenStream, TokenStream)> {
   let bits_ty = Ident::new(&format!("{}Bits", input_ident), input_ident.span());
 
@@ -505,7 +540,8 @@ fn generate_checked_bit_pattern_struct(
 }
 
 fn generate_checked_bit_pattern_enum(
-  input: &DeriveInput, variants: &Punctuated<Variant, Token![,]>, crate_name: &TokenStream
+  input: &DeriveInput, variants: &Punctuated<Variant, Token![,]>,
+  crate_name: &TokenStream,
 ) -> Result<(TokenStream, TokenStream)> {
   if enum_has_fields(variants.iter()) {
     generate_checked_bit_pattern_enum_with_fields(input, variants, crate_name)
@@ -574,7 +610,8 @@ fn generate_checked_bit_pattern_enum_without_fields(
 }
 
 fn generate_checked_bit_pattern_enum_with_fields(
-  input: &DeriveInput, variants: &Punctuated<Variant, Token![,]>, crate_name: &TokenStream
+  input: &DeriveInput, variants: &Punctuated<Variant, Token![,]>,
+  crate_name: &TokenStream,
 ) -> Result<(TokenStream, TokenStream)> {
   let representation = get_repr(&input.attrs)?;
   let vis = &input.vis;
@@ -594,23 +631,28 @@ fn generate_checked_bit_pattern_enum_with_fields(
 
       let bits_repr = Representation { repr: Repr::C, ..representation };
 
-      // the enum manually re-configured as the actual tagged union it represents,
-      // thus circumventing the requirements rust imposes on the tag even when using
-      // #[repr(C)] enum layout
+      // the enum manually re-configured as the actual tagged union it
+      // represents, thus circumventing the requirements rust imposes on
+      // the tag even when using #[repr(C)] enum layout
       // see: https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields
-      let bits_ty_ident = Ident::new(&format!("{input_ident}Bits"), input.span());
+      let bits_ty_ident =
+        Ident::new(&format!("{input_ident}Bits"), input.span());
 
-      // the variants union part of the tagged union. These get put into a union which gets the
-      // AnyBitPattern derive applied to it, thus checking that the fields of the union obey the requriements of AnyBitPattern.
-      // The types that actually go in the union are one more level of indirection deep: we generate new structs for each variant
-      // (`variant_struct_definitions`) which themselves have the `CheckedBitPattern` derive applied, thus generating `{variant_struct_ident}Bits`
-      // structs, which are the ones that go into this union.
+      // the variants union part of the tagged union. These get put into a union
+      // which gets the AnyBitPattern derive applied to it, thus checking
+      // that the fields of the union obey the requriements of AnyBitPattern.
+      // The types that actually go in the union are one more level of
+      // indirection deep: we generate new structs for each variant
+      // (`variant_struct_definitions`) which themselves have the
+      // `CheckedBitPattern` derive applied, thus generating
+      // `{variant_struct_ident}Bits` structs, which are the ones that go
+      // into this union.
       let variants_union_ident =
         Ident::new(&format!("{}Variants", input.ident), input.span());
 
-      let variant_struct_idents = variants
-        .iter()
-        .map(|v| Ident::new(&format!("{input_ident}Variant{}", v.ident), v.span()));
+      let variant_struct_idents = variants.iter().map(|v| {
+        Ident::new(&format!("{input_ident}Variant{}", v.ident), v.span())
+      });
 
       let variant_struct_definitions =
         variant_struct_idents.clone().zip(variants.iter()).map(|(variant_struct_ident, v)| {
@@ -623,8 +665,10 @@ fn generate_checked_bit_pattern_enum_with_fields(
           }
         });
 
-      let union_fields =
-        variant_struct_idents.clone().zip(variants.iter()).map(|(variant_struct_ident, v)| {
+      let union_fields = variant_struct_idents
+        .clone()
+        .zip(variants.iter())
+        .map(|(variant_struct_ident, v)| {
           let variant_struct_bits_ident =
             Ident::new(&format!("{variant_struct_ident}Bits"), input.span());
           let field_ident = &v.ident;
@@ -722,17 +766,20 @@ fn generate_checked_bit_pattern_enum_with_fields(
       let bits_repr = Representation { repr: Repr::C, ..representation };
       let input_ident = &input.ident;
 
-      // the enum manually re-configured as the union it represents. such a union is the union of variants
-      // as a repr(c) struct with the discriminator type inserted at the beginning.
-      // in our case we union the `Bits` representation of each variant rather than the variant itself, which we generate
-      // via a nested `CheckedBitPattern` derive on the `variant_struct_definitions` generated below.
+      // the enum manually re-configured as the union it represents. such a
+      // union is the union of variants as a repr(c) struct with the
+      // discriminator type inserted at the beginning. in our case we
+      // union the `Bits` representation of each variant rather than the variant
+      // itself, which we generate via a nested `CheckedBitPattern` derive
+      // on the `variant_struct_definitions` generated below.
       //
       // see: https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
-      let bits_ty_ident = Ident::new(&format!("{input_ident}Bits"), input.span());
+      let bits_ty_ident =
+        Ident::new(&format!("{input_ident}Bits"), input.span());
 
-      let variant_struct_idents = variants
-        .iter()
-        .map(|v| Ident::new(&format!("{input_ident}Variant{}", v.ident), v.span()));
+      let variant_struct_idents = variants.iter().map(|v| {
+        Ident::new(&format!("{input_ident}Variant{}", v.ident), v.span())
+      });
 
       let variant_struct_definitions =
         variant_struct_idents.clone().zip(variants.iter()).map(|(variant_struct_ident, v)| {
@@ -746,8 +793,10 @@ fn generate_checked_bit_pattern_enum_with_fields(
           }
         });
 
-      let union_fields =
-        variant_struct_idents.clone().zip(variants.iter()).map(|(variant_struct_ident, v)| {
+      let union_fields = variant_struct_idents
+        .clone()
+        .zip(variants.iter())
+        .map(|(variant_struct_ident, v)| {
           let variant_struct_bits_ident =
             Ident::new(&format!("{variant_struct_ident}Bits"), input.span());
           let field_ident = &v.ident;
@@ -1261,5 +1310,5 @@ pub fn bytemuck_crate_name(input: &DeriveInput) -> TokenStream {
     }).unwrap();
   }
 
-  return crate_name;
+  crate_name
 }

@@ -38,8 +38,6 @@ jobs:
     - run: cargo test --verbose
     - run: cargo test --verbose --all-features
       if: matrix.rust == 'nightly'
-    - run: cargo test --verbose --manifest-path=derive/Cargo.toml --all-features
-      if: matrix.rust == 'nightly'
 
   cross-test:
     name: Test on ${{ matrix.target }} with cross
@@ -58,8 +56,6 @@ jobs:
     - run: cross test --verbose --target=${{ matrix.target }}
     - run: cross test --verbose --target=${{ matrix.target }} --all-features
       if: matrix.rust == 'nightly'
-    - run: cross test --verbose --target=${{ matrix.target }} --manifest-path=derive/Cargo.toml --all-features
-      if: matrix.rust == 'nightly'
 
   miri-test:
     name: Test with miri
@@ -74,7 +70,6 @@ jobs:
     - run: rm -fr target
     - run: cargo miri test --verbose --no-default-features
     - run: cargo miri test --verbose --all-features
-    - run: cd derive && rm -fr target && cargo miri test --verbose --all-features
 
   sanitizer-test:
     name: Test with -Zsanitizer=${{ matrix.sanitizer }}

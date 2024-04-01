@@ -1,6 +1,14 @@
 
 ## `bytemuck_derive` changelog
 
+## 2.0.0-alpha1
+
+* Update to bytemuck 2.0.0-alpha1
+* Update to 2021 edition.
+* Derive macros automatically emit required supertraits, i.e. `derive(Pod)` emits impls for `NoUninit`, `AnyBitPattern`, and `Zeroable`.
+* `derive(NoUninit)` now works for `repr(packed(1))` and `repr(transparent)` generic structs, as `derive(Pod)` did in 1.x
+* FIXME(zachs18): write more here
+
 ## 1.6.0
 
 * This allows `CheckedBitPattern` to be derived for enums with fields.
