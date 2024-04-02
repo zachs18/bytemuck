@@ -1,4 +1,3 @@
-#![cfg(feature = "alloc")]
 //! Stuff to boost things in the `alloc` crate.
 //!
 //! * You must enable the `alloc` feature of `bytemuck` or you will not be able
@@ -73,7 +72,7 @@ pub fn try_cast_box<A: NoUninit, B: AnyBitPattern>(
 pub fn try_zeroed_box<T: Zeroable>() -> Result<Box<T>, ()> {
   if size_of::<T>() == 0 {
     // This will not allocate but simply create a dangling pointer.
-    let dangling = core::ptr::NonNull::dangling().as_ptr();
+    let dangling = NonNull::dangling().as_ptr();
     return Ok(unsafe { Box::from_raw(dangling) });
   }
   let layout = Layout::new::<T>();
@@ -130,11 +129,11 @@ pub fn try_zeroed_slice_box<T: Zeroable>(
 ) -> Result<Box<[T]>, ()> {
   if size_of::<T>() == 0 || length == 0 {
     // This will not allocate but simply create a dangling slice pointer.
-    let dangling = core::ptr::NonNull::dangling().as_ptr();
+    let dangling = NonNull::dangling().as_ptr();
     let dangling_slice = core::ptr::slice_from_raw_parts_mut(dangling, length);
     return Ok(unsafe { Box::from_raw(dangling_slice) });
   }
-  let layout = core::alloc::Layout::array::<T>(length).map_err(|_| ())?;
+  let layout = Layout::array::<T>(length).map_err(|_| ())?;
   let ptr = unsafe { alloc_zeroed(layout) };
   if ptr.is_null() {
     // we don't know what the error is because `alloc_zeroed` is a dumb API
