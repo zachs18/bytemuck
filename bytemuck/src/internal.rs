@@ -4,7 +4,7 @@
 //! versions exported in the crate root, `checked`, and `relaxed` modules.
 #![allow(unused_unsafe)]
 
-use core::mem::{align_of, size_of};
+use core::mem::{align_of, size_of, size_of_val};
 
 use crate::PodCastError;
 
@@ -51,15 +51,10 @@ pub(crate) fn something_went_wrong<D>(_src: &str, _err: D) -> ! {
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline(always)]
-pub(crate) unsafe fn bytes_of<T>(t: &T) -> &[u8] {
-  if size_of::<T>() == 0 {
-    &[]
-  } else {
-    match try_cast_slice::<T, u8>(core::slice::from_ref(t)) {
-      Ok(s) => s,
-      Err(_) => unreachable!(),
-    }
-  }
+pub(crate) unsafe fn bytes_of<T: ?Sized>(t: &T) -> &[u8] {
+  let bytes = size_of_val(t);
+  let ptr = core::ptr::from_ref(t).cast();
+  core::slice::from_raw_parts(ptr, bytes)
 }
 
 /// Re-interprets `&mut T` as `&mut [u8]`.
@@ -67,15 +62,10 @@ pub(crate) unsafe fn bytes_of<T>(t: &T) -> &[u8] {
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline]
-pub(crate) unsafe fn bytes_of_mut<T>(t: &mut T) -> &mut [u8] {
-  if size_of::<T>() == 0 {
-    &mut []
-  } else {
-    match try_cast_slice_mut::<T, u8>(core::slice::from_mut(t)) {
-      Ok(s) => s,
-      Err(_) => unreachable!(),
-    }
-  }
+pub(crate) unsafe fn bytes_of_mut<T: ?Sized>(t: &mut T) -> &mut [u8] {
+  let bytes = size_of_val(t);
+  let ptr = core::ptr::from_mut(t).cast();
+  core::slice::from_raw_parts_mut(ptr, bytes)
 }
 
 /// Re-interprets `&[u8]` as `&T`.

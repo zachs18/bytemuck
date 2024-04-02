@@ -206,7 +206,7 @@ impl std::error::Error for PodCastError {}
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline]
-pub fn bytes_of<T: NoUninit + Freeze>(t: &T) -> &[u8] {
+pub fn bytes_of<T: NoUninit + Freeze + ?Sized>(t: &T) -> &[u8] {
   unsafe { internal::bytes_of(t) }
 }
 
@@ -215,7 +215,9 @@ pub fn bytes_of<T: NoUninit + Freeze>(t: &T) -> &[u8] {
 /// Any ZST becomes an empty slice, and in that case the pointer value of that
 /// empty slice might not match the pointer value of the input reference.
 #[inline]
-pub fn bytes_of_mut<T: NoUninit + AnyBitPattern>(t: &mut T) -> &mut [u8] {
+pub fn bytes_of_mut<T: NoUninit + AnyBitPattern + ?Sized>(
+  t: &mut T,
+) -> &mut [u8] {
   unsafe { internal::bytes_of_mut(t) }
 }
 
