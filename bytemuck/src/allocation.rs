@@ -728,9 +728,9 @@ impl Drop for BoxBytes {
   }
 }
 
-impl<T: ?Sized + sealed::BoxBytesOf> From<Box<T>> for BoxBytes {
+impl<T: ?Sized + NoUninit> From<Box<T>> for BoxBytes {
   fn from(value: Box<T>) -> Self {
-    value.box_bytes_of()
+    box_bytes_of(value)
   }
 }
 
@@ -738,40 +738,10 @@ mod sealed {
   use crate::{BoxBytes, PodCastError};
   use alloc::boxed::Box;
 
-  pub trait BoxBytesOf {
-    fn box_bytes_of(self: Box<Self>) -> BoxBytes;
-  }
-
   pub trait FromBoxBytes {
     fn try_from_box_bytes(
       bytes: BoxBytes,
     ) -> Result<Box<Self>, (PodCastError, BoxBytes)>;
-  }
-}
-
-impl<T: NoUninit> sealed::BoxBytesOf for T {
-  fn box_bytes_of(self: Box<Self>) -> BoxBytes {
-    let layout = Layout::new::<T>();
-    let ptr = Box::into_raw(self) as *mut u8;
-    // SAFETY: Box::into_raw() returns a non-null pointer.
-    let ptr = unsafe { NonNull::new_unchecked(ptr) };
-    BoxBytes { ptr, layout }
-  }
-}
-
-impl<T: NoUninit> sealed::BoxBytesOf for [T] {
-  fn box_bytes_of(self: Box<Self>) -> BoxBytes {
-    let layout = Layout::for_value::<[T]>(&self);
-    let ptr = Box::into_raw(self) as *mut u8;
-    // SAFETY: Box::into_raw() returns a non-null pointer.
-    let ptr = unsafe { NonNull::new_unchecked(ptr) };
-    BoxBytes { ptr, layout }
-  }
-}
-
-impl sealed::BoxBytesOf for str {
-  fn box_bytes_of(self: Box<Self>) -> BoxBytes {
-    self.into_boxed_bytes().box_bytes_of()
   }
 }
 
@@ -815,12 +785,13 @@ impl<T: AnyBitPattern> sealed::FromBoxBytes for [T] {
 }
 
 /// Re-interprets `Box<T>` as `BoxBytes`.
-///
-/// `T` must be either [`Sized`] and [`NoUninit`],
-/// [`[U]`](slice) where `U: NoUninit`, or [`str`].
 #[inline]
-pub fn box_bytes_of<T: sealed::BoxBytesOf + ?Sized>(input: Box<T>) -> BoxBytes {
-  input.box_bytes_of()
+pub fn box_bytes_of<T: NoUninit + ?Sized>(input: Box<T>) -> BoxBytes {
+  let layout = Layout::for_value::<T>(&*input);
+  let ptr = Box::into_raw(input) as *mut u8;
+  // SAFETY: Box::into_raw() returns a non-null pointer.
+  let ptr = unsafe { NonNull::new_unchecked(ptr) };
+  BoxBytes { ptr, layout }
 }
 
 /// Re-interprets `BoxBytes` as `Box<T>`.
