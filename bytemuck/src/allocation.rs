@@ -8,7 +8,7 @@
 //!   `bytemuck = { version = "VERSION_YOU_ARE_USING", features = ["alloc"] }`
 
 #[allow(unused)] // used in intra-doc links
-use crate::{cast_mut, cast_slice, cast_slice_mut};
+use crate::{cast_mut, cast_ref, cast_slice, cast_slice_mut};
 #[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 use alloc::{
@@ -322,9 +322,9 @@ pub fn cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
 ///
 /// On failure you get back an error along with the starting `Rc`.
 ///
-/// The bounds on this function are the same as [`cast_mut`], because a user
-/// could call `Rc::get_unchecked_mut` on the output, which could be observable
-/// in the input.
+/// The bounds on this function are the same as [`cast_ref`], because in safe
+/// code, an `Rc<T>` acts like a combination of `&T` and a `Box<T>`, so we take
+/// the bounds of both `cast_ref` and [`cast_box`].
 ///
 /// ## Failure
 ///
@@ -360,9 +360,9 @@ pub fn cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
 ///
 /// On failure you get back an error along with the starting `Arc`.
 ///
-/// The bounds on this function are the same as [`cast_mut`], because a user
-/// could call `Rc::get_unchecked_mut` on the output, which could be observable
-/// in the input.
+/// The bounds on this function are the same as [`cast_ref`], because in safe
+/// code, an `Arc<T>` acts like a combination of `&T` and a `Box<T>`, so we take
+/// the bounds of both `cast_ref` and [`cast_box`].
 ///
 /// ## Failure
 ///
@@ -388,10 +388,7 @@ pub fn try_cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
 
 /// As [`try_cast_slice_rc`], but unwraps for you.
 #[inline]
-pub fn cast_slice_rc<
-  A: NoUninit + AnyBitPattern,
-  B: NoUninit + AnyBitPattern,
->(
+pub fn cast_slice_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Rc<[A]>,
 ) -> Rc<[B]> {
   try_cast_slice_rc(input).map_err(|(e, _v)| e).unwrap()
@@ -401,9 +398,9 @@ pub fn cast_slice_rc<
 ///
 /// On failure you get back an error along with the starting `Rc<[T]>`.
 ///
-/// The bounds on this function are the same as [`cast_mut`], because a user
-/// could call `Rc::get_unchecked_mut` on the output, which could be observable
-/// in the input.
+/// The bounds on this function are the same as [`cast_ref`], because in safe
+/// code, an `Rc<T>` acts like a combination of `&T` and a `Box<T>`, so we take
+/// the bounds of both `cast_ref` and [`cast_box`].
 ///
 /// ## Failure
 ///
@@ -412,10 +409,7 @@ pub fn cast_slice_rc<
 /// * The start and end content size in bytes of the `Rc<[T]>` must be the exact
 ///   same.
 #[inline]
-pub fn try_cast_slice_rc<
-  A: NoUninit + AnyBitPattern,
-  B: NoUninit + AnyBitPattern,
->(
+pub fn try_cast_slice_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Rc<[A]>,
 ) -> Result<Rc<[B]>, (PodCastError, Rc<[A]>)> {
   if align_of::<A>() != align_of::<B>() {
@@ -452,10 +446,7 @@ pub fn try_cast_slice_rc<
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
 #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
-pub fn cast_slice_arc<
-  A: NoUninit + AnyBitPattern,
-  B: NoUninit + AnyBitPattern,
->(
+pub fn cast_slice_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<[A]>,
 ) -> Arc<[B]> {
   try_cast_slice_arc(input).map_err(|(e, _v)| e).unwrap()
@@ -465,9 +456,9 @@ pub fn cast_slice_arc<
 ///
 /// On failure you get back an error along with the starting `Arc<[T]>`.
 ///
-/// The bounds on this function are the same as [`cast_mut`], because a user
-/// could call `Rc::get_unchecked_mut` on the output, which could be observable
-/// in the input.
+/// The bounds on this function are the same as [`cast_ref`], because in safe
+/// code, an `Arc<T>` acts like a combination of `&T` and a `Box<T>`, so we take
+/// the bounds of both `cast_ref` and [`cast_box`].
 ///
 /// ## Failure
 ///
@@ -478,10 +469,7 @@ pub fn cast_slice_arc<
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
 #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
-pub fn try_cast_slice_arc<
-  A: NoUninit + AnyBitPattern,
-  B: NoUninit + AnyBitPattern,
->(
+pub fn try_cast_slice_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<[A]>,
 ) -> Result<Arc<[B]>, (PodCastError, Arc<[A]>)> {
   if align_of::<A>() != align_of::<B>() {
