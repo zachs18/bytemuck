@@ -190,11 +190,19 @@ mod atomic_impls {
   #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
   unsafe impl<T> Zeroable for core::sync::atomic::AtomicPtr<T> {}
 
+  #[cfg(feature = "nightly_atomic_128")]
   #[cfg(target_has_atomic = "128")]
-  #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "128")))]
+  #[cfg_attr(
+    feature = "nightly_docs",
+    doc(cfg(all(target_has_atomic = "128", feature = "nightly_atomic_128")))
+  )]
   unsafe impl Zeroable for core::sync::atomic::AtomicU128 {}
+  #[cfg(feature = "nightly_atomic_128")]
   #[cfg(target_has_atomic = "128")]
-  #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "128")))]
+  #[cfg_attr(
+    feature = "nightly_docs",
+    doc(cfg(all(target_has_atomic = "128", feature = "nightly_atomic_128")))
+  )]
   unsafe impl Zeroable for core::sync::atomic::AtomicI128 {}
 }
 

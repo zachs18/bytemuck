@@ -12,6 +12,10 @@
   ),
   feature(stdarch_x86_avx512)
 )]
+#![cfg_attr(
+  all(target_has_atomic = "128", feature = "nightly_atomic_128"),
+  feature(integer_atomics)
+)]
 
 //! This crate gives small utilities for casting between plain data types.
 //!

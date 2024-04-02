@@ -32,6 +32,7 @@ unstable_pod_pointers = []
 # NOT SEMVER SUPPORTED! TEMPORARY ONLY!
 nightly_portable_simd = []
 nightly_stdsimd = []
+nightly_atomic_128 = []
 
 # Improved documentation using the nightly toolchain
 nightly_docs = []
