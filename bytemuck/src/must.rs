@@ -4,7 +4,10 @@
 #![allow(clippy::ptr_as_ptr)]
 
 use crate::{AnyBitPattern, NoUninit};
-use core::mem::{align_of, size_of};
+use core::{
+  marker::Freeze,
+  mem::{align_of, size_of},
+};
 
 struct Cast<A, B>((A, B));
 impl<A, B> Cast<A, B> {
@@ -64,7 +67,9 @@ pub fn must_cast<A: NoUninit, B: AnyBitPattern>(a: A) -> B {
 /// let bytes : &u16 = bytemuck::must_cast_ref(&[1u8, 2u8]);
 /// ```
 #[inline]
-pub fn must_cast_ref<A: NoUninit, B: AnyBitPattern>(a: &A) -> &B {
+pub fn must_cast_ref<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
+  a: &A,
+) -> &B {
   let _ = Cast::<A, B>::ASSERT_SIZE_EQUAL;
   let _ = Cast::<A, B>::ASSERT_ALIGN_GREATER_THAN_EQUAL;
   unsafe { &*(a as *const A as *const B) }
@@ -133,7 +138,9 @@ pub fn must_cast_mut<
 /// let indicies : &[u16] = bytemuck::must_cast_slice(byte_pairs);
 /// ```
 #[inline]
-pub fn must_cast_slice<A: NoUninit, B: AnyBitPattern>(a: &[A]) -> &[B] {
+pub fn must_cast_slice<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
+  a: &[A],
+) -> &[B] {
   let _ = Cast::<A, B>::ASSERT_SIZE_MULTIPLE_OF;
   let _ = Cast::<A, B>::ASSERT_ALIGN_GREATER_THAN_EQUAL;
   let new_len = if size_of::<A>() == size_of::<B>() {
