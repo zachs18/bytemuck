@@ -45,14 +45,6 @@ use core::{
 ///   [Infallible](core::convert::Infallible)).
 /// * The type must be valid for any bit pattern of its backing memory.
 /// * Structs need to have all fields also be `AnyBitPattern`.
-/// * It is disallowed for types to contain pointer types, `Cell`, `UnsafeCell`,
-///   atomics, and any other forms of interior mutability.
-/// * More precisely: A shared reference to the type must allow reads, and
-///   *only* reads. RustBelt's separation logic is based on the notion that a
-///   type is allowed to define a sharing predicate, its own invariant that must
-///   hold for shared references, and this predicate is the reasoning that allow
-///   it to deal with atomic and cells etc. We require the sharing predicate to
-///   be trivial and permit only read-only access.
 /// * There's probably more, don't mess it up (I mean it).
 pub unsafe trait AnyBitPattern: Zeroable {}
 
@@ -112,7 +104,6 @@ mod pointer_impls {
 unsafe impl<T: ?Sized> AnyBitPattern for PhantomData<T> {}
 unsafe impl AnyBitPattern for PhantomPinned {}
 
-// Don't need to override `write_zero`, since ManuallyDrop doesn't drop anyway
 unsafe impl<T: AnyBitPattern + ?Sized> AnyBitPattern for ManuallyDrop<T> {}
 unsafe impl<T: AnyBitPattern + ?Sized> AnyBitPattern
   for core::cell::UnsafeCell<T>

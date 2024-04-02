@@ -125,6 +125,8 @@ mod pointer_impls {
 unsafe impl<T: ?Sized + 'static> NoUninit for PhantomData<T> {}
 unsafe impl NoUninit for PhantomPinned {}
 unsafe impl<T: NoUninit + ?Sized> NoUninit for ManuallyDrop<T> {}
+unsafe impl<T: NoUninit + ?Sized> NoUninit for core::cell::UnsafeCell<T> {}
+unsafe impl<T: NoUninit + ?Sized> NoUninit for core::cell::Cell<T> {}
 
 // Note: MaybeUninit can NEVER be NoUninit.
 
