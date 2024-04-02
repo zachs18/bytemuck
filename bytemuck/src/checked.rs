@@ -349,7 +349,7 @@ where
 #[inline]
 pub fn try_cast_mut<
   A: NoUninit + AnyBitPattern,
-  B: CheckedBitPattern + NoUninit,
+  B: NoUninit + CheckedBitPattern,
 >(
   a: &mut A,
 ) -> Result<&mut B, CheckedCastError> {
@@ -404,7 +404,7 @@ where
 #[inline]
 pub fn try_cast_slice_mut<
   A: NoUninit + AnyBitPattern,
-  B: CheckedBitPattern + NoUninit,
+  B: NoUninit + CheckedBitPattern,
 >(
   a: &mut [A],
 ) -> Result<&mut [B], CheckedCastError> {
