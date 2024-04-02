@@ -313,6 +313,10 @@ fn checkedbitpattern_aligned_struct() {
 }
 
 #[test]
+#[cfg_attr(
+  not(target_pointer_width = "64"),
+  ignore = "this test assumes u64 is 8-byte aligned"
+)]
 fn checkedbitpattern_c_default_discriminant_enum_with_fields() {
   let pod = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xcc, 0x55, 0x55, 0x55,
@@ -372,6 +376,10 @@ fn checkedbitpattern_int_enum_with_fields() {
 }
 
 #[test]
+#[cfg_attr(
+  not(target_pointer_width = "64"),
+  ignore = "this test assumes u64 is 8-byte aligned"
+)]
 fn checkedbitpattern_nested_enum_with_fields() {
   // total size 24 bytes. first byte always the u8 discriminant.
 
