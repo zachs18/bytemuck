@@ -10,13 +10,12 @@ use core::{
 // Note(Lokathor): This is the neat part!!
 unsafe impl<T: ZeroableInOption> Zeroable for Option<T> {}
 
-/// Trait for types which are [Zeroable](Zeroable) when wrapped in
+/// Trait for types which are [Zeroable] when wrapped in
 /// [Option](core::option::Option).
 ///
 /// ## Safety
 ///
-/// * `Option<YourType>` must uphold the same invariants as
-///   [Zeroable](Zeroable).
+/// * `Option<YourType>` must uphold the same invariants as [Zeroable].
 pub unsafe trait ZeroableInOption: Sized {}
 
 unsafe impl ZeroableInOption for NonZeroI8 {}

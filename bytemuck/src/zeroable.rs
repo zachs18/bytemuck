@@ -21,11 +21,8 @@ use core::{
 ///
 /// Some `impl`s are feature gated due to the MSRV policy:
 ///
-/// * `MaybeUninit<T>` was not available in 1.34.0, but is available under the
-///   `zeroable_maybe_uninit` feature flag.
-/// * `Atomic*` types require Rust 1.60.0 or later to work on certain platforms,
-///   but is available under the `zeroable_atomics` feature flag.
-/// * `[T; N]` for arbitrary `N` requires the `min_const_generics` feature flag.
+/// * `Atomic*128` types are not yet stable, and so require the
+///   `nightly_atomic_128` feature flag.
 pub unsafe trait Zeroable {
   /// Calls [`zeroed`](core::mem::zeroed).
   ///

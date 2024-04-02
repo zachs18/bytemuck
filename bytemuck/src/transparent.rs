@@ -1,3 +1,5 @@
+#[allow(unused)] // used in intra-doc links
+use crate::Zeroable;
 use core::{
   alloc::Layout,
   mem::{align_of, size_of},

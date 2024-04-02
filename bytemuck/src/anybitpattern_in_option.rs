@@ -7,13 +7,12 @@ use core::num::{
 // Note(Lokathor): This is the neat part!!
 unsafe impl<T: AnyBitPatternInOption> AnyBitPattern for Option<T> {}
 
-/// Trait for types which are [AnyBitPattern](AnyBitPattern) when wrapped in
+/// Trait for types which are [AnyBitPattern] when wrapped in
 /// [Option](core::option::Option).
 ///
 /// ## Safety
 ///
-/// * `Option<YourType>` must uphold the same invariants as
-///   [AnyBitPattern](AnyBitPattern).
+/// * `Option<YourType>` must uphold the same invariants as [AnyBitPattern].
 pub unsafe trait AnyBitPatternInOption: ZeroableInOption {}
 
 unsafe impl AnyBitPatternInOption for NonZeroI8 {}

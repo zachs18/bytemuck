@@ -8,12 +8,12 @@ use crate::NoUninit;
 // Note(Lokathor): This is the neat part!!
 unsafe impl<T: NoUninitInOption> NoUninit for Option<T> {}
 
-/// Trait for types which are [NoUninit](NoUninit) when wrapped in
+/// Trait for types which are [NoUninit] when wrapped in
 /// [Option](core::option::Option).
 ///
 /// ## Safety
 ///
-/// * `Option<T>` must uphold the same invariants as [NoUninit](NoUninit).
+/// * `Option<T>` must uphold the same invariants as [NoUninit].
 /// * **Reminder:** pointers are **not** NoUninit! **Do not** mix this trait
 ///   with a newtype over [NonNull](core::ptr::NonNull).
 pub unsafe trait NoUninitInOption: Sized {}

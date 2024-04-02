@@ -1,3 +1,5 @@
+#[allow(unused)] // used in intra-doc links
+use crate::Pod;
 use core::{
   marker::{PhantomData, PhantomPinned},
   mem::ManuallyDrop,

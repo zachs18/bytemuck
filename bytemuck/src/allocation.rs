@@ -1,5 +1,4 @@
 #![cfg(feature = "alloc")]
-
 //! Stuff to boost things in the `alloc` crate.
 //!
 //! * You must enable the `alloc` feature of `bytemuck` or you will not be able
@@ -8,6 +7,8 @@
 //!
 //!   `bytemuck = { version = "VERSION_YOU_ARE_USING", features = ["alloc"] }`
 
+#[allow(unused)] // used in intra-doc links
+use crate::{cast_mut, cast_slice, cast_slice_mut};
 #[cfg(target_has_atomic = "ptr")]
 use alloc::sync::Arc;
 use alloc::{
@@ -28,13 +29,13 @@ use crate::{
   AnyBitPattern, NoUninit, PodCastError, TransparentWrapper, Zeroable,
 };
 
-/// As [`try_cast_box`](try_cast_box), but unwraps for you.
+/// As [`try_cast_box`], but unwraps for you.
 #[inline]
 pub fn cast_box<A: NoUninit, B: AnyBitPattern>(input: Box<A>) -> Box<B> {
   try_cast_box(input).map_err(|(e, _v)| e).unwrap()
 }
 
-/// Attempts to cast the content type of a [`Box`](alloc::boxed::Box).
+/// Attempts to cast the content type of a [`Box`].
 ///
 /// On failure you get back an error along with the starting `Box`.
 ///
@@ -145,12 +146,12 @@ pub fn try_zeroed_slice_box<T: Zeroable>(
   }
 }
 
-/// As [`try_zeroed_slice_box`](try_zeroed_slice_box), but unwraps for you.
+/// As [`try_zeroed_slice_box`], but unwraps for you.
 pub fn zeroed_slice_box<T: Zeroable>(length: usize) -> Box<[T]> {
   try_zeroed_slice_box(length).unwrap()
 }
 
-/// As [`try_cast_slice_box`](try_cast_slice_box), but unwraps for you.
+/// As [`try_cast_slice_box`], but unwraps for you.
 #[inline]
 pub fn cast_slice_box<A: NoUninit, B: AnyBitPattern>(
   input: Box<[A]>,
@@ -201,13 +202,13 @@ pub fn try_cast_slice_box<A: NoUninit, B: AnyBitPattern>(
   }
 }
 
-/// As [`try_cast_vec`](try_cast_vec), but unwraps for you.
+/// As [`try_cast_vec`], but unwraps for you.
 #[inline]
 pub fn cast_vec<A: NoUninit, B: AnyBitPattern>(input: Vec<A>) -> Vec<B> {
   try_cast_vec(input).map_err(|(e, _v)| e).unwrap()
 }
 
-/// Attempts to cast the content type of a [`Vec`](alloc::vec::Vec).
+/// Attempts to cast the content type of a [`Vec`].
 ///
 /// On failure you get back an error along with the starting `Vec`.
 ///
@@ -309,7 +310,7 @@ pub fn pod_collect_to_vec<
   dst
 }
 
-/// As [`try_cast_rc`](try_cast_rc), but unwraps for you.
+/// As [`try_cast_rc`], but unwraps for you.
 #[inline]
 pub fn cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Rc<A>,
@@ -317,7 +318,7 @@ pub fn cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   try_cast_rc(input).map_err(|(e, _v)| e).unwrap()
 }
 
-/// Attempts to cast the content type of a [`Rc`](alloc::rc::Rc).
+/// Attempts to cast the content type of a [`Rc`].
 ///
 /// On failure you get back an error along with the starting `Rc`.
 ///
@@ -345,16 +346,17 @@ pub fn try_cast_rc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   }
 }
 
-/// As [`try_cast_arc`](try_cast_arc), but unwraps for you.
+/// As [`try_cast_arc`], but unwraps for you.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
 pub fn cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<A>,
 ) -> Arc<B> {
   try_cast_arc(input).map_err(|(e, _v)| e).unwrap()
 }
 
-/// Attempts to cast the content type of a [`Arc`](alloc::sync::Arc).
+/// Attempts to cast the content type of a [`Arc`].
 ///
 /// On failure you get back an error along with the starting `Arc`.
 ///
@@ -369,6 +371,7 @@ pub fn cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
 /// * The start and end size of the `Arc` must have the exact same size.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
 pub fn try_cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   input: Arc<A>,
 ) -> Result<Arc<B>, (PodCastError, Arc<A>)> {
@@ -383,7 +386,7 @@ pub fn try_cast_arc<A: NoUninit + Freeze, B: AnyBitPattern + Freeze>(
   }
 }
 
-/// As [`try_cast_slice_rc`](try_cast_slice_rc), but unwraps for you.
+/// As [`try_cast_slice_rc`], but unwraps for you.
 #[inline]
 pub fn cast_slice_rc<
   A: NoUninit + AnyBitPattern,
@@ -445,9 +448,10 @@ pub fn try_cast_slice_rc<
   }
 }
 
-/// As [`try_cast_slice_arc`](try_cast_slice_arc), but unwraps for you.
+/// As [`try_cast_slice_arc`], but unwraps for you.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
 pub fn cast_slice_arc<
   A: NoUninit + AnyBitPattern,
   B: NoUninit + AnyBitPattern,
@@ -473,6 +477,7 @@ pub fn cast_slice_arc<
 ///   exact same.
 #[inline]
 #[cfg(target_has_atomic = "ptr")]
+#[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
 pub fn try_cast_slice_arc<
   A: NoUninit + AnyBitPattern,
   B: NoUninit + AnyBitPattern,
@@ -558,7 +563,7 @@ pub trait TransparentWrapperAlloc<Inner: ?Sized>:
     }
   }
 
-  /// Convert an [`Rc`](alloc::rc::Rc) to the inner type into an `Rc` to the
+  /// Convert an [`Rc`] to the inner type into an `Rc` to the
   /// wrapper type.
   #[inline]
   fn wrap_rc(s: Rc<Inner>) -> Rc<Self> {
@@ -580,10 +585,11 @@ pub trait TransparentWrapperAlloc<Inner: ?Sized>:
     }
   }
 
-  /// Convert an [`Arc`](alloc::sync::Arc) to the inner type into an `Arc` to
+  /// Convert an [`Arc`] to the inner type into an `Arc` to
   /// the wrapper type.
   #[inline]
   #[cfg(target_has_atomic = "ptr")]
+  #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
   fn wrap_arc(s: Arc<Inner>) -> Arc<Self> {
     assert!(size_of::<*mut Inner>() == size_of::<*mut Self>());
 
@@ -648,7 +654,7 @@ pub trait TransparentWrapperAlloc<Inner: ?Sized>:
     }
   }
 
-  /// Convert an [`Rc`](alloc::rc::Rc) to the wrapper type into an `Rc` to the
+  /// Convert an [`Rc`] to the wrapper type into an `Rc` to the
   /// inner type.
   #[inline]
   fn peel_rc(s: Rc<Self>) -> Rc<Inner> {
@@ -670,10 +676,11 @@ pub trait TransparentWrapperAlloc<Inner: ?Sized>:
     }
   }
 
-  /// Convert an [`Arc`](alloc::sync::Arc) to the wrapper type into an `Arc` to
+  /// Convert an [`Arc`] to the wrapper type into an `Arc` to
   /// the inner type.
   #[inline]
   #[cfg(target_has_atomic = "ptr")]
+  #[cfg_attr(feature = "nightly_docs", doc(cfg(target_has_atomic = "ptr")))]
   fn peel_arc(s: Arc<Self>) -> Arc<Inner> {
     assert!(size_of::<*mut Inner>() == size_of::<*mut Self>());
 

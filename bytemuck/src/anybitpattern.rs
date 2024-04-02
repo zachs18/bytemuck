@@ -1,10 +1,10 @@
+#[allow(unused)] // used in intra-doc links
+use crate::{Pod, Zeroable};
 use core::{
   marker::{PhantomData, PhantomPinned},
   mem::ManuallyDrop,
   num::Wrapping,
 };
-
-use crate::Zeroable;
 
 /// Marker trait for "plain old data" types that are valid for any bit pattern.
 ///
