@@ -2,7 +2,7 @@
 # https://github.com/rust-lang/rustfmt/blob/rustfmt-1.4.19/Configurations.md
 
 # Stable
-edition = "2018"
+edition = "2021"
 fn_args_layout = "Compressed"
 max_width = 80
 tab_spaces = 2

@@ -5,7 +5,6 @@
 * Update to 2021 edition.
 * MSRV (whever `core::mem::Freeze` is stabilized, nightly-only for now)
   * TODO: decide on MSRV policy
-* Update to edition 2021
 * Restructure the trait hierarchy.
   * `Pod` now has a supertrait bound on and blanket impl for `T: NoUninit + AnyBitPattern`, and cannot be implemented manually.
 * Relaxed requirements for main traits: (bounds are moved to the relevant functions)
