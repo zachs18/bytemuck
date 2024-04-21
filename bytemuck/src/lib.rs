@@ -135,6 +135,9 @@ pub use anybitpattern::*;
 mod anybitpattern_in_option;
 pub use anybitpattern_in_option::*;
 
+#[cfg(feature = "compat")]
+pub mod compat;
+
 pub mod checked;
 pub use checked::CheckedBitPattern;
 

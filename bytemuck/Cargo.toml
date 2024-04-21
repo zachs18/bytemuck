@@ -16,6 +16,7 @@ exclude = ["/pedantic.bat"]
 derive = ["bytemuck_derive"]
 alloc = []
 std = ["alloc"]
+compat = ["dep:bytemuck1"]
 
 # All MSRV notes below are GUIDELINES and future versions may require even more
 # MSRV on any feature.
@@ -39,6 +40,7 @@ nightly_docs = []
 
 [dependencies]
 bytemuck_derive = { version = "2.0.0-alpha1", path = "../bytemuck_derive", optional = true }
+bytemuck1 = { package = "bytemuck", version = "1", optional = true }
 
 [package.metadata.docs.rs]
 features = [
