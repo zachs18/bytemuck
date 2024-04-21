@@ -185,9 +185,9 @@ impl Derivable for NoUninit {
             " requirements cannot be verified"
           ));
         } else {
-          let assert_no_padding = generate_assert_no_padding(&input)?;
+          let assert_no_padding = generate_assert_no_padding(input)?;
           let assert_fields_are_no_padding =
-            generate_fields_are_trait(&input, Self::ident(input, crate_name)?)?;
+            generate_fields_are_trait(input, Self::ident(input, crate_name)?)?;
           Ok(quote!(
               #assert_no_padding
               #assert_fields_are_no_padding
@@ -253,7 +253,7 @@ impl Derivable for CheckedBitPattern {
     match &input.data {
       Data::Struct(DataStruct { .. }) => {
         let assert_fields_are_maybe_pod =
-          generate_fields_are_trait(&input, Self::ident(input, crate_name)?)?;
+          generate_fields_are_trait(input, Self::ident(input, crate_name)?)?;
 
         Ok(assert_fields_are_maybe_pod)
       }
@@ -291,11 +291,11 @@ impl TransparentWrapper {
   ) -> Option<TokenStream> {
     let transparent_param = get_simple_attr(attributes, "transparent");
     transparent_param.map(|ident| ident.to_token_stream()).or_else(|| {
-      let mut types = get_field_types(&fields);
+      let mut types = get_field_types(fields);
       let first_type = types.next();
-      if let Some(_) = types.next() {
+      if types.next().is_some() {
         // can't guess param type if there is more than one field
-        return None;
+        None
       } else {
         first_type.map(|ty| ty.to_token_stream())
       }
@@ -307,7 +307,7 @@ impl Derivable for TransparentWrapper {
   fn ident(input: &DeriveInput, crate_name: &TokenStream) -> Result<syn::Path> {
     let fields = get_struct_fields(input)?;
 
-    let ty = match Self::get_wrapper_type(&input.attrs, &fields) {
+    let ty = match Self::get_wrapper_type(&input.attrs, fields) {
       Some(ty) => ty,
       None => bail!(
         "\
@@ -326,7 +326,7 @@ impl Derivable for TransparentWrapper {
     let (impl_generics, _ty_generics, where_clause) =
       input.generics.split_for_impl();
     let fields = get_struct_fields(input)?;
-    let wrapped_type = match Self::get_wrapper_type(&input.attrs, &fields) {
+    let wrapped_type = match Self::get_wrapper_type(&input.attrs, fields) {
       Some(wrapped_type) => wrapped_type.to_string(),
       None => unreachable!(), /* other code will already reject this derive */
     };
@@ -402,7 +402,7 @@ impl Derivable for Contiguous {
     let variants = get_enum_variants(input)?;
     if enum_has_fields(variants.clone()) {
       return Err(Error::new_spanned(
-        &input,
+        input,
         "Only fieldless enums are supported",
       ));
     }
@@ -411,7 +411,7 @@ impl Derivable for Contiguous {
       VariantDiscriminantIterator::new(variants);
 
     let (min, max, count) = variants_with_discriminator.try_fold(
-      (i64::max_value(), i64::min_value(), 0),
+      (i64::MAX, i64::MIN, 0),
       |(min, max, count), res| {
         let discriminator = res?;
         Ok::<_, Error>((
@@ -558,7 +558,7 @@ fn generate_checked_bit_pattern_enum_without_fields(
     VariantDiscriminantIterator::new(variants.iter());
 
   let (min, max, count) = variants_with_discriminant.try_fold(
-    (i64::max_value(), i64::min_value(), 0),
+    (i64::MAX, i64::MIN, 0),
     |(min, max, count), res| {
       let discriminant = res?;
       Ok::<_, Error>((
@@ -1270,7 +1270,7 @@ mod tests {
 }
 
 pub fn bytemuck_crate_name(input: &DeriveInput) -> TokenStream {
-  const ATTR_NAME: &'static str = "crate";
+  const ATTR_NAME: &str = "crate";
 
   let mut crate_name = quote!(::bytemuck);
   for attr in &input.attrs {
