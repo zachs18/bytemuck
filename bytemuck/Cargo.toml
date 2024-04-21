@@ -21,10 +21,7 @@ compat = ["dep:bytemuck1"]
 # All MSRV notes below are GUIDELINES and future versions may require even more
 # MSRV on any feature.
 
-# MSRV 1.36: Use `align_offset` method instead of casting to `usize` to check
-# alignment of pointers, this *may* improve codegen in some cases (but it has
-# never been formally benchmarked!)
-align_offset = []
+# (currently no features have an MSRV)
 
 # NOT SEMVER SUPPORTED! May be removed or made the default depending on the
 # resolution of https://github.com/rust-lang/unsafe-code-guidelines/issues/286
