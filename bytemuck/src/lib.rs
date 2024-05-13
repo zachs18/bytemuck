@@ -463,3 +463,11 @@ pub fn try_cast_slice_mut<
 pub fn write_zeroes<T: Zeroable + ?Sized>(target: &mut T) {
   target.write_zero()
 }
+
+/// Initialize a zeroed `T`.
+///
+/// Like [`Zeroable::zeroed`], but supports const.
+#[inline]
+pub const fn zeroed<T: Zeroable>() -> T {
+  unsafe { core::mem::zeroed() }
+}
