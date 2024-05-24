@@ -4,3 +4,6 @@ members = [
   "bytemuck_derive"
 ]
 resolver = "2"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(target_arch, values("spirv"))'] }

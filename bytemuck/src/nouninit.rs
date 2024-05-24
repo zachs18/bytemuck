@@ -133,12 +133,12 @@ unsafe impl<T: NoUninit + ?Sized> NoUninit for core::cell::Cell<T> {}
 unsafe impl<T, const N: usize> NoUninit for [T; N] where T: NoUninit {}
 
 impl_unsafe_marker_for_simd!(
-  #[cfg(all(target_arch = "wasm32", feature = "wasm_simd"))]
+  #[cfg(target_arch = "wasm32")]
   unsafe impl NoUninit for core::arch::wasm32::{v128}
 );
 
 impl_unsafe_marker_for_simd!(
-  #[cfg(all(target_arch = "aarch64", feature = "aarch64_simd"))]
+  #[cfg(target_arch = "aarch64")]
   unsafe impl NoUninit for core::arch::aarch64::{
     float32x2_t, float32x2x2_t, float32x2x3_t, float32x2x4_t, float32x4_t,
     float32x4x2_t, float32x4x3_t, float32x4x4_t, float64x1_t, float64x1x2_t,
