@@ -420,7 +420,8 @@ pub fn derive_byte_eq(
   let input = parse_macro_input!(input as DeriveInput);
   let crate_name = bytemuck_crate_name(&input);
   let ident = input.ident;
-  let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+  let (impl_generics, ty_generics, where_clause) =
+    input.generics.split_for_impl();
 
   proc_macro::TokenStream::from(quote! {
     impl #impl_generics ::core::cmp::PartialEq for #ident #ty_generics #where_clause {
@@ -473,7 +474,8 @@ pub fn derive_byte_hash(
   let input = parse_macro_input!(input as DeriveInput);
   let crate_name = bytemuck_crate_name(&input);
   let ident = input.ident;
-  let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+  let (impl_generics, ty_generics, where_clause) =
+    input.generics.split_for_impl();
 
   proc_macro::TokenStream::from(quote! {
     impl #impl_generics ::core::hash::Hash for #ident #ty_generics #where_clause {

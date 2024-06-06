@@ -131,7 +131,7 @@ impl Derivable for Zeroable {
     let repr = get_repr(attributes)?;
     match ty {
       Data::Struct(_) => Ok(()),
-      Data::Enum(DataEnum { variants,.. }) => {
+      Data::Enum(DataEnum { variants, .. }) => {
         if !repr.repr.is_integer() {
           bail!("Zeroable requires the enum to be an explicit #[repr(Int)]")
         }
@@ -154,15 +154,19 @@ impl Derivable for Zeroable {
         }
 
         Ok(())
-      },
-      Data::Union(_) => Ok(())
+      }
+      Data::Union(_) => Ok(()),
     }
   }
 
-  fn asserts(input: &DeriveInput, crate_name: &TokenStream) -> Result<TokenStream> {
+  fn asserts(
+    input: &DeriveInput, crate_name: &TokenStream,
+  ) -> Result<TokenStream> {
     match &input.data {
       Data::Union(_) => Ok(quote!()), // unions are always `Zeroable`
-      Data::Struct(_) => generate_fields_are_trait(input, Self::ident(input, crate_name)?),
+      Data::Struct(_) => {
+        generate_fields_are_trait(input, Self::ident(input, crate_name)?)
+      }
       Data::Enum(_) => Ok(quote!()),
     }
   }

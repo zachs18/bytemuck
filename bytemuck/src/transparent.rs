@@ -108,9 +108,10 @@ use core::{
 /// #[derive(TransparentWrapper)]
 /// #[repr(transparent)]
 /// #[transparent(usize)]
-/// struct Wrapper<T: ?Sized>(usize, PhantomData<T>); // PhantomData<T> implements Zeroable for all T
+/// // PhantomData<T> implements Zeroable for all T
+/// struct Wrapper<T: ?Sized>(usize, PhantomData<T>);
 /// ```
-///
+/// 
 /// Here, an error will occur, because `MyZst` does not implement `Zeroable`.
 #[cfg_attr(feature = "derive", doc = "```compile_fail")]
 #[cfg_attr(
