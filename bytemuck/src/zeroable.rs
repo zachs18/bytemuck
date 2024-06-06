@@ -47,28 +47,51 @@ pub unsafe trait Zeroable {
   /// value fails, then `self` will be left in a valid (but not necessarily
   /// all-zero-byte) state.
   ///
-  /// Note for implementors: The default implementation does not drop `self`
-  /// before writing zeros. If your type has drop glue you may want to override
-  /// this method.
+  /// Note for implementors: The default implementation drops `self`
+  /// before writing zeros.
   #[inline]
   fn write_zero(&mut self) {
-    let guard = EnsureZeroWrite(self);
+    let guard = EnsureZeroWrite::new(self);
+    unsafe {
+      core::ptr::drop_in_place(guard.as_ptr());
+    }
     drop(guard);
   }
 }
 
-struct EnsureZeroWrite<T: ?Sized>(*mut T);
-impl<T: ?Sized> Drop for EnsureZeroWrite<T> {
-  #[inline(always)]
-  fn drop(&mut self) {
-    let bytes = core::mem::size_of_val(self);
-    unsafe {
-      core::ptr::write_bytes(self.0.cast::<u8>(), 0u8, bytes);
+use ensure_zero_write::EnsureZeroWrite;
+mod ensure_zero_write {
+  use core::marker::PhantomData;
+  pub(super) struct EnsureZeroWrite<'a, T: ?Sized>(
+    *mut T,
+    usize,
+    PhantomData<&'a mut T>,
+  );
+  impl<'a, T: ?Sized> EnsureZeroWrite<'a, T> {
+    #[inline(always)]
+    pub fn new(value: &'a mut T) -> Self {
+      let bytes = core::mem::size_of_val(value);
+      Self(value, bytes, PhantomData)
+    }
+    pub fn as_ptr(&self) -> *mut T {
+      self.0
+    }
+  }
+  impl<T: ?Sized> Drop for EnsureZeroWrite<'_, T> {
+    #[inline(always)]
+    fn drop(&mut self) {
+      unsafe {
+        core::ptr::write_bytes(self.0.cast::<u8>(), 0u8, self.1);
+      }
     }
   }
 }
 
 unsafe impl<T: Zeroable> Zeroable for [T] {
+  /// Write zeros to `self`, one item at a time.
+  ///
+  /// If dropping any element panics, that element will still be overwritten
+  /// with zeros, but subsequent items will not.
   #[inline]
   fn write_zero(&mut self) {
     if core::mem::needs_drop::<T>() {
@@ -77,7 +100,7 @@ unsafe impl<T: Zeroable> Zeroable for [T] {
       self.iter_mut().for_each(T::write_zero);
     } else {
       // Otherwise we can be really fast and just fill everthing with zeros.
-      let guard = EnsureZeroWrite(self);
+      let guard = EnsureZeroWrite::new(self);
       drop(guard);
     }
   }
@@ -121,26 +144,9 @@ unsafe impl Zeroable for *const str {}
 unsafe impl<T: ?Sized> Zeroable for PhantomData<T> {}
 unsafe impl Zeroable for PhantomPinned {}
 
-// Don't need to override `write_zero`, since ManuallyDrop doesn't drop anyway
 unsafe impl<T: Zeroable + ?Sized> Zeroable for ManuallyDrop<T> {}
-unsafe impl<T: Zeroable + ?Sized> Zeroable for core::cell::UnsafeCell<T> {
-  fn write_zero(&mut self) {
-    unsafe {
-      let guard = EnsureZeroWrite(self);
-      core::ptr::drop_in_place(guard.0);
-      drop(guard);
-    }
-  }
-}
-unsafe impl<T: Zeroable + ?Sized> Zeroable for core::cell::Cell<T> {
-  fn write_zero(&mut self) {
-    unsafe {
-      let guard = EnsureZeroWrite(self);
-      core::ptr::drop_in_place(guard.0);
-      drop(guard);
-    }
-  }
-}
+unsafe impl<T: Zeroable + ?Sized> Zeroable for core::cell::UnsafeCell<T> {}
+unsafe impl<T: Zeroable + ?Sized> Zeroable for core::cell::Cell<T> {}
 
 mod atomic_impls {
   use super::Zeroable;
@@ -258,7 +264,16 @@ unsafe impl<
 {
 }
 
-unsafe impl<T, const N: usize> Zeroable for [T; N] where T: Zeroable {}
+unsafe impl<T, const N: usize> Zeroable for [T; N]
+where
+  T: Zeroable,
+{
+  #[inline]
+  fn write_zero(&mut self) {
+    // delegate to [T] instead of duplicating one-at-a-time logic
+    self[..].write_zero();
+  }
+}
 
 impl_unsafe_marker_for_simd!(
   #[cfg(target_arch = "wasm32")]
