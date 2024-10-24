@@ -5,13 +5,52 @@ extern crate proc_macro;
 mod traits;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput, Result};
 
 use crate::traits::{
   bytemuck_crate_name, AnyBitPattern, CheckedBitPattern, Contiguous, Derivable,
   NoUninit, Pod, TransparentWrapper, Zeroable,
 };
+
+/// If there are any unknown attributes still in the input, we cannot easily
+/// check if they modify the type such that our derive macro is no longer sound
+fn ensure_no_unknown_attrs(input: &DeriveInput) {
+  'attr: for attr in &input.attrs {
+    match &attr.meta {
+      syn::Meta::Path(path) => {}
+      syn::Meta::List(meta_list) => {
+        if let Some(ident) = meta_list.path.get_ident() {
+          if ["repr", "allow", "deny", "forbid", "expect", "warn", "derive"]
+            .iter()
+            .any(|&value| ident == value)
+          {
+            // these attributes do not change the token stream
+            continue 'attr;
+          }
+          if ["transparent", "zeroable", "wrap", "bytemuck"]
+            .iter()
+            .any(|&value| ident == value)
+          {
+            // these are helper attributes for our own derive macros
+            continue 'attr;
+          }
+        }
+      }
+      syn::Meta::NameValue(meta_name_value) => {
+        if let Some(ident) = meta_name_value.path.get_ident() {
+          if ident == "doc" {
+            // the `doc` attribute does not change the token stream
+            continue 'attr;
+          }
+        }
+      }
+    };
+
+    let path = attr.meta.to_token_stream();
+    panic!("Unrecognized attribute: `{}`", path);
+  }
+}
 
 /// Derive the `Pod` trait for a struct
 ///
@@ -522,6 +561,7 @@ pub fn derive_byte_hash(
 
 /// Basic wrapper for error handling
 fn derive_marker_trait<Trait: Derivable>(input: DeriveInput) -> TokenStream {
+  ensure_no_unknown_attrs(&input);
   derive_marker_trait_inner::<Trait>(input)
     .unwrap_or_else(|err| err.into_compile_error())
 }
