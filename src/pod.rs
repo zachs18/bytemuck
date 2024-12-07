@@ -58,22 +58,10 @@ unsafe impl Pod for f128 {}
 unsafe impl<T: Pod> Pod for Wrapping<T> {}
 
 #[cfg(feature = "unsound_ptr_pod_impl")]
-#[cfg_attr(
-  feature = "nightly_docs",
-  doc(cfg(feature = "unsound_ptr_pod_impl"))
-)]
 unsafe impl<T: 'static> Pod for *mut T {}
 #[cfg(feature = "unsound_ptr_pod_impl")]
-#[cfg_attr(
-  feature = "nightly_docs",
-  doc(cfg(feature = "unsound_ptr_pod_impl"))
-)]
 unsafe impl<T: 'static> Pod for *const T {}
 #[cfg(feature = "unsound_ptr_pod_impl")]
-#[cfg_attr(
-  feature = "nightly_docs",
-  doc(cfg(feature = "unsound_ptr_pod_impl"))
-)]
 unsafe impl<T: 'static> PodInOption for NonNull<T> {}
 
 unsafe impl<T: ?Sized + 'static> Pod for PhantomData<T> {}
@@ -83,7 +71,6 @@ unsafe impl<T: Pod> Pod for core::mem::ManuallyDrop<T> {}
 // Note(Lokathor): MaybeUninit can NEVER be Pod.
 
 #[cfg(feature = "min_const_generics")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "min_const_generics")))]
 unsafe impl<T, const N: usize> Pod for [T; N] where T: Pod {}
 
 #[cfg(not(feature = "min_const_generics"))]
@@ -141,10 +128,6 @@ impl_unsafe_marker_for_simd!(
 );
 
 #[cfg(feature = "nightly_portable_simd")]
-#[cfg_attr(
-  feature = "nightly_docs",
-  doc(cfg(feature = "nightly_portable_simd"))
-)]
 unsafe impl<T, const N: usize> Pod for core::simd::Simd<T, N>
 where
   T: core::simd::SimdElement + Pod,

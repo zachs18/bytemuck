@@ -4,7 +4,7 @@
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::result_unit_err)]
 #![allow(clippy::type_complexity)]
-#![cfg_attr(feature = "nightly_docs", feature(doc_cfg))]
+#![cfg_attr(feature = "nightly_docs", feature(doc_auto_cfg))]
 #![cfg_attr(feature = "nightly_portable_simd", feature(portable_simd))]
 #![cfg_attr(feature = "nightly_float", feature(f16, f128))]
 #![cfg_attr(
@@ -147,7 +147,6 @@ macro_rules! impl_unsafe_marker_for_simd {
   ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for $platform:ident :: {}) => {};
   ($(#[cfg($cfg_predicate:meta)])? unsafe impl $trait:ident for $platform:ident :: { $first_type:ident $(, $types:ident)* $(,)? }) => {
     $( #[cfg($cfg_predicate)] )?
-    $( #[cfg_attr(feature = "nightly_docs", doc(cfg($cfg_predicate)))] )?
     unsafe impl $trait for $platform::$first_type {}
     $( #[cfg($cfg_predicate)] )? // To prevent recursion errors if nothing is going to be expanded anyway.
     impl_unsafe_marker_for_simd!($( #[cfg($cfg_predicate)] )? unsafe impl $trait for $platform::{ $( $types ),* });
@@ -160,7 +159,6 @@ extern crate std;
 #[cfg(feature = "extern_crate_alloc")]
 extern crate alloc;
 #[cfg(feature = "extern_crate_alloc")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_alloc")))]
 pub mod allocation;
 #[cfg(feature = "extern_crate_alloc")]
 pub use allocation::*;
@@ -186,7 +184,6 @@ pub use pod_in_option::*;
 #[cfg(feature = "must_cast")]
 mod must;
 #[cfg(feature = "must_cast")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "must_cast")))]
 pub use must::*;
 
 mod no_uninit;
@@ -203,7 +200,6 @@ mod transparent;
 pub use transparent::*;
 
 #[cfg(feature = "derive")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "derive")))]
 pub use bytemuck_derive::{
   AnyBitPattern, ByteEq, ByteHash, CheckedBitPattern, Contiguous, NoUninit,
   Pod, TransparentWrapper, Zeroable,
@@ -237,7 +233,6 @@ impl core::fmt::Display for PodCastError {
   }
 }
 #[cfg(feature = "extern_crate_std")]
-#[cfg_attr(feature = "nightly_docs", doc(cfg(feature = "extern_crate_std")))]
 impl std::error::Error for PodCastError {}
 
 /// Re-interprets `&T` as `&[u8]`.
