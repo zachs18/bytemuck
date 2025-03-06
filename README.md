@@ -1,5 +1,6 @@
 * **[Latest Docs.rs Here](https://docs.rs/bytemuck/)**
 
+
 [![License:Zlib](https://img.shields.io/badge/License-Zlib-brightgreen.svg)](https://opensource.org/licenses/Zlib)
 ![Minimum Rust Version](https://img.shields.io/badge/Min%20Rust-1.34-green.svg)
 [![crates.io](https://img.shields.io/crates/v/bytemuck.svg)](https://crates.io/crates/bytemuck)
