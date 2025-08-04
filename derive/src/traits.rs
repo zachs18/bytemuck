@@ -1073,10 +1073,23 @@ fn generate_assert_no_padding(
     quote!(0)
   };
 
-  Ok(quote! {const _: fn() = || {
+  // We are using `transmute` to check that the size of the type is equal to the sum of the
+  // sizes of its fields, which may in the future require actually evaluating a transmute
+  // to emit an error, so we emit a free unnamed constant item that performs a transmute of
+  // `MaybeUninit`s to be maximally forward compatible with possible relaxations of
+  // `transmute`'s requirements.
+  Ok(quote! {const _: () = {
     #[doc(hidden)]
+    #[repr(transparent)]
     struct TypeWithoutPadding([u8; #size_sum]);
-    let _ = ::core::mem::transmute::<#struct_type, TypeWithoutPadding>;
+
+    // SAFETY: `MaybeUninit` has no validity invariants, it is always sound to transmute to.
+    let _ = unsafe {
+        ::core::mem::transmute::<
+            ::core::mem::MaybeUninit<#struct_type>,
+            ::core::mem::MaybeUninit<TypeWithoutPadding>,
+        >(::core::mem::MaybeUninit::uninit())
+    };
   };})
 }
 
