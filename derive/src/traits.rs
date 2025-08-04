@@ -1073,10 +1073,11 @@ fn generate_assert_no_padding(
     quote!(0)
   };
 
-  Ok(quote! {const _: fn() = || {
-    #[doc(hidden)]
-    struct TypeWithoutPadding([u8; #size_sum]);
-    let _ = ::core::mem::transmute::<#struct_type, TypeWithoutPadding>;
+  Ok(quote! {const _: () = {
+    assert!(
+        ::core::mem::size_of::<#struct_type>() == (#size_sum),
+        "\nderive(bytemuck::Pod) or derive(bytemuck::NoUninit) was applied to a type with padding",
+    );
   };})
 }
 
