@@ -57,6 +57,12 @@ alloc_uninit = []
 # Do not use if you can avoid it, because this is **unsound**!!!!
 unsound_ptr_pod_impl = []
 
+# Implements `ZeroableInOption` for function pointer types with unsupported ABIs for the target.
+# Do not use if you can avoid it, because these types may become a hard error in a future Rust version,
+# and this feature may then be removed.
+# See https://github.com/rust-lang/rust/issues/137018 for more information.
+fn_ptr_unsupported_abi = []
+
 # MSRV 1.46.0: adds the `#[track_caller]` attribute to functions which may panic
 track_caller = []
 
